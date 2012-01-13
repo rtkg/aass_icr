@@ -1,0 +1,48 @@
+obj-1.0:
+  ubuntu: |
+      if [ ! -f `rospack find libobj`/obj-1.0/build/lib/libobj.so ] ; then
+        cd `rospack find libobj`
+        sudo rm -r -f obj-1.0
+        wget --no-check-certificate https://github.com/rtkg/obj-1.0/tarball/master
+        tar xpvf master
+        mv rtkg-obj-1.0-* obj-1.0
+        rm master
+        cd obj-1.0
+        ./configure --prefix=`pwd`/build
+        make
+        sudo make install
+      fi
+
+Qhull-2011.2:
+  ubuntu: |
+      if [ ! -f `rospack find libqhull`/Qhull-2011.2/build/lib/libqhull6.so ] ; then
+        cd `rospack find libqhull`
+        sudo rm -r -f Qhull-2011.2
+        wget --no-check-certificate https://nodeload.github.com/rtkg/Qhull-2011.2/tarball/master
+        tar xpvf master
+        mv rtkg-Qhull-2011.2-* Qhull-2011.2
+        rm master
+        cd Qhull-2011.2
+        cmake -DCMAKE_INSTALL_PREFIX=`pwd`/build
+        make
+        sudo make install
+        make clean
+      fi
+
+libicr:
+  ubuntu: |
+      if [ ! -f `rospack find libicr`/icrcpp/lib/libicr.a ] ; then
+        cd `rospack find libicr`
+        sudo rm -r -f icrcpp
+        wget --no-check-certificate https://github.com/rtkg/icrcpp/tarball/master
+        tar xpvf master
+        mv rtkg-icrcpp-* icrcpp
+        rm master
+        cd icrcpp
+
+        INCLUDE=`rospack export --lang=cpp --attrib=cflags libobj`
+        INCLUDE+=`rospack export --lang=cpp --attrib=cflags libqhull`
+        INCLUDE+="-I"`pwd`/tools/eigen-eigen-3.0.2
+
+        make INCPATH="$INCLUDE"  
+      fi

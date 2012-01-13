@@ -1,0 +1,15 @@
+<package>
+  <description brief="Implements a node for the computation of Independent Contact Regions">
+
+  </description>
+  <author>Robert Krug</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <depend package="libobj"/>
+  <depend package="libqhull"/>
+  <depend package="libicr"/>
+  <depend package="eigen"/>
+  <depend package="roscpp"/>
+</package>
+
+
