@@ -12,8 +12,8 @@ int main(int argc, char **argv)
 
   //Load a new target object 
   ICR::ObjectLoader obj_loader;
-  obj_loader.loadObject("../../libicr/icrcpp/models/beer_can.obj","beer_can");
-
+  obj_loader.loadObject("/home/rkg/ros/aass_icr/libicr/icrcpp/models/beer_can.obj","beer_can");
+   
   //Create a list of 5 default finger parameters (default parameters defined in config.h) and a 
   //vector of centerpoint contact id's for the 5-fingered prototype grasp
   ICR::FParamList f_parameters;
@@ -68,41 +68,41 @@ int main(int argc, char **argv)
    * than we can send them, the number here specifies how many messages to
    * buffer up before throwing some away.
    */
-  ros::Publisher chatter_pub = n.advertise<std_msgs::String>("chatter", 1000);
+  // ros::Publisher chatter_pub = n.advertise<std_msgs::String>("chatter", 1000);
 
-  ros::Rate loop_rate(10);
+  // ros::Rate loop_rate(10);
 
-  /**
-   * A count of how many messages we have sent. This is used to create
-   * a unique string for each message.
-   */
-  int count = 0;
-  while (ros::ok())
-  {
-    /**
-     * This is a message object. You stuff it with data, and then publish it.
-     */
-    std_msgs::String msg;
+  // /**
+  //  * A count of how many messages we have sent. This is used to create
+  //  * a unique string for each message.
+  //  */
+  // int count = 0;
+  // while (ros::ok())
+  // {
+  //   /**
+  //    * This is a message object. You stuff it with data, and then publish it.
+  //    */
+  //   std_msgs::String msg;
 
-    std::stringstream ss;
-    ss << "hello " << count;
-    msg.data = ss.str();
+  //   std::stringstream ss;
+  //   ss << "hello " << count;
+  //   msg.data = ss.str();
 
-    ROS_INFO("%s", msg.data.c_str());
+  //   ROS_INFO("%s", msg.data.c_str());
 
-    /**
-     * The publish() function is how you send messages. The parameter
-     * is the message object. The type of this object must agree with the type
-     * given as a template parameter to the advertise<>() call, as was done
-     * in the constructor above.
-     */
-    chatter_pub.publish(msg);
+  //   /**
+  //    * The publish() function is how you send messages. The parameter
+  //    * is the message object. The type of this object must agree with the type
+  //    * given as a template parameter to the advertise<>() call, as was done
+  //    * in the constructor above.
+  //    */
+  //   chatter_pub.publish(msg);
 
-    ros::spinOnce();
+  //   ros::spinOnce();
 
-    loop_rate.sleep();
-    ++count;
-  }
+  //   loop_rate.sleep();
+  //   ++count;
+  // }
 
 
   // Utility for timing selected parts of the code - uncomment below and put the code to be timed at the marked location
