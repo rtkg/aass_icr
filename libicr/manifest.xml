@@ -10,9 +10,9 @@
   <export>
     <cpp cflags="-I${prefix}/icrcpp/include" lflags="-L${prefix}/icrcpp/lib -Wl,-rpath,${prefix}/icrcpp/lib -licr"/>
   </export>
-  <rosdep name="libicr"/>
   <depend package="libobj"/>
   <depend package="libqhull"/>
+  <rosdep name="libicr"/>
 </package>
 
 
