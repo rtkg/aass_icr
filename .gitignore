@@ -29,6 +29,8 @@ build/*/MinSizeRel/*
 build/*/RelWithDebInfo/*
 icr/build/
 icr/bin/
+icr/src/icr
+icr/srv_gen
 libicr/icrcpp
 libobj/obj-1.0
 libqhull/Qhull-2011.2
