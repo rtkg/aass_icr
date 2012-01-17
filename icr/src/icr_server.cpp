@@ -152,3 +152,120 @@ int main(int argc, char **argv)
 // public:
 //   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 // };
+//======================================================================
+//======================================================================
+// #include <LoggerNode.hh>
+// #include <pcl/registration/transformation_estimation_svd.h>
+// #include <tf_conversions/tf_eigen.h>
+
+// #define DO_DEBUG_PROC
+
+// void LoggerNode::log(){
+    
+//     //dump the point clouds with corresponding points (debug)
+//     char fname[100];
+//     Eigen::Transform<double,3,Eigen::Affine, Eigen::ColMajor> TR;
+//     TR.setIdentity();
+//     double xoffset, yoffset, zoffset, roll, pitch, yaw;
+
+//     tf::StampedTransform transformLaser, transformKinect, transformSR, transformFotonic;
+    
+//     tfListener.lookupTransform("/robot_frame", laserFrame, lastLaser, transformLaser);
+//     tfListener.lookupTransform("/robot_frame", kinectFrame, lastLaser, transformKinect);
+//     tfListener.lookupTransform("/robot_frame", srFrame, lastLaser, transformSR);
+//     tfListener.lookupTransform("/robot_frame", fotonicFrame, lastLaser, transformFotonic);
+
+
+//     //sensor1 -- kinect
+//     //kinect points go in without tranformations
+//     tf::TransformTFToEigen(transformKinect,TR);
+//     lslgeneric::transformPointCloudInPlace(TR, sensor1_pc);
+//     snprintf(fname,99,"sensorlog/kinect/pc%04d.wrl",dump_number);
+//     FILE *fout = fopen(fname,"w");
+//     if(fout != NULL) {
+// 	fprintf(fout,"#VRML V2.0 utf8\n");
+// 	lslgeneric::writeToVRML(fout,sensor1_pc);
+//     }
+//     fclose(fout);
+ 
+//     //sensor 2 -- swiss ranger
+//     tf::TransformTFToEigen(transformSR,TR);
+//     lslgeneric::transformPointCloudInPlace(TR, sensor2_pc);
+//     snprintf(fname,99,"sensorlog/sr/pc%04d.wrl",dump_number);
+//     fout = fopen(fname,"w");
+//     if(fout != NULL) {
+// 	fprintf(fout,"#VRML V2.0 utf8\n");
+// 	lslgeneric::writeToVRML(fout,sensor2_pc);
+//     }
+//     fclose(fout);
+    
+//     //sensor 3 -- fotonic camera
+//     tf::TransformTFToEigen(transformFotonic,TR);
+//     lslgeneric::transformPointCloudInPlace(TR, sensor3_pc);
+//     snprintf(fname,99,"sensorlog/fotonic/pc%04d.wrl",dump_number);
+//     fout = fopen(fname,"w");
+//     if(fout != NULL) {
+// 	fprintf(fout,"#VRML V2.0 utf8\n");
+// 	lslgeneric::writeToVRML(fout,sensor3_pc);
+//     }
+//     fclose(fout);
+    
+//     //sensor 4 -- actuated laser
+//     tf::TransformTFToEigen(transformLaser,TR);
+//     lslgeneric::transformPointCloudInPlace(TR, sensor4_pc);
+//     snprintf(fname,99,"sensorlog/laser/pc%04d.wrl",dump_number);
+//     fout = fopen(fname,"w");
+//     if(fout != NULL) {
+// 	fprintf(fout,"#VRML V2.0 utf8\n");
+// 	lslgeneric::writeToVRML(fout,sensor4_pc);
+//     }
+//     fclose(fout);
+    
+//     //combined
+//     snprintf(fname,99,"sensorlog/all/pc%04d.wrl",dump_number);
+//     fout = fopen(fname,"w");
+//     if(fout != NULL) {
+// 	fprintf(fout,"#VRML V2.0 utf8\n");
+// 	lslgeneric::writeToVRML(fout,sensor1_pc,Eigen::Vector3d(1,1,1));
+// 	lslgeneric::writeToVRML(fout,sensor2_pc,Eigen::Vector3d(1,0,0));
+// 	lslgeneric::writeToVRML(fout,sensor3_pc,Eigen::Vector3d(0,1,0));
+// 	lslgeneric::writeToVRML(fout,sensor4_pc,Eigen::Vector3d(0,0,1));
+//     }
+//     fclose(fout);
+
+//     dump_number++;
+//     s1_fresh = false; s2_fresh = false;
+//     s3_fresh = false; s4_fresh = false;
+// }
+
+
+// // Callback
+// void LoggerNode::s1pts(const sensor_msgs::PointCloud2::ConstPtr& msg_in) {
+//     data_mutex.lock();
+//     pcl::fromROSMsg (*msg_in, sensor1_pc);
+//     s1_fresh = true;
+//     if(s1_fresh && s2_fresh && s3_fresh && s4_fresh) log(); 
+//     data_mutex.unlock();
+// }
+// void LoggerNode::s2pts(const sensor_msgs::PointCloud2::ConstPtr& msg_in) {
+//     data_mutex.lock();
+//     pcl::fromROSMsg (*msg_in, sensor2_pc);
+//     s2_fresh = true;
+//     if(s1_fresh && s2_fresh && s3_fresh && s4_fresh) log(); 
+//     data_mutex.unlock();
+// }
+// void LoggerNode::s3pts(const sensor_msgs::PointCloud2::ConstPtr& msg_in) {
+//     data_mutex.lock();
+//     pcl::fromROSMsg (*msg_in, sensor3_pc);
+//     s3_fresh = true;
+//     if(s1_fresh && s2_fresh && s3_fresh && s4_fresh) log(); 
+//     data_mutex.unlock();
+// }
+// void LoggerNode::s4pts(const sensor_msgs::PointCloud2::ConstPtr& msg_in) {
+//     data_mutex.lock();
+//     pcl::fromROSMsg (*msg_in, sensor4_pc);
+//     s4_fresh = true;
+//     lastLaser = msg_in->header.stamp;
+//     if(s1_fresh && s2_fresh && s3_fresh && s4_fresh) log(); 
+//     data_mutex.unlock();
+// }
