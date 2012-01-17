@@ -27,6 +27,7 @@ build/*/Release/*
 build/*/Debug/*
 build/*/MinSizeRel/*
 build/*/RelWithDebInfo/*
+build
 icr/build/
 icr/bin/
 icr/src/icr

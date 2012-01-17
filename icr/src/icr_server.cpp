@@ -4,7 +4,9 @@
 #include "icr/load_object.h"
 #include <sys/time.h>
 #include <time.h>
+#include <boost/thread/mutex.hpp>
 
+//boost::interprocess::interprocess_mutex ipmutex;
 bool compute(icr::compute_icr::Request  &req,
 	     icr::compute_icr::Response &res)
 {
@@ -85,6 +87,32 @@ int main(int argc, char **argv)
 
   return 0;
 }
+
+
+class IcrServer
+{
+private:
+
+  ros::NodeHandle nh_;
+  ros::ServiceServer compute_icr_service_;
+  ICR::ObjectLoader* obj_loader_;
+  boost::mutex data_mutex_;
+public:
+ 
+  IcrServer();
+  void compute_icr(icr::compute_icr::Request  &req, icr::compute_icr::Response &res);
+};
+
+  IcrServer::IcrServer()
+  {
+    std::cout<<"Constructor of IcrServer"<<std::endl;
+  }
+
+void IcrServer::compute_icr(icr::compute_icr::Request  &req, icr::compute_icr::Response &res)
+{
+  std::cout<<"computing"<<std::endl;
+}
+
 //some dummy changes
 // include <PointCloudUtils.hh>
 // #include <cstdio>
