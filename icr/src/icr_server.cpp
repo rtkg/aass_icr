@@ -6,7 +6,6 @@
 #include <time.h>
 #include <boost/thread/mutex.hpp>
 
-//boost::interprocess::interprocess_mutex ipmutex;
 bool compute(icr::compute_icr::Request  &req,
 	     icr::compute_icr::Response &res)
 {
@@ -75,6 +74,57 @@ bool compute(icr::compute_icr::Request  &req,
 }
 
 
+class IcrServer
+{
+private:
+
+  ros::NodeHandle nh_;
+  ros::ServiceServer compute_icr_service_;
+  ros::ServiceServer load_wfront_obj_service_;
+  ICR::ObjectLoader* obj_loader_;
+  boost::mutex data_mutex_;
+public:
+ 
+  IcrServer();
+  ~IcrServer();
+  bool computeIcr(icr::compute_icr::Request  &req, icr::compute_icr::Response &res);
+  bool loadWfrontObj(icr::load_object::Request  &req, icr::load_object::Response &res);
+ 
+};
+
+IcrServer::IcrServer() : obj_loader_(new ICR::ObjectLoader()) 
+  {
+    //    compute_icr_service_=nh_.advertiseService("compute_icr",&IcrServer::computeIcr,this);
+    load_wfront_obj_service_=nh_.advertiseService("load_wfront_obj",&IcrServer::loadWfrontObj,this);
+
+    std::cout<<"Constructor of IcrServer"<<std::endl;
+  }
+
+IcrServer::~IcrServer()
+{
+  delete obj_loader_;
+}
+bool IcrServer::computeIcr(icr::compute_icr::Request  &req, icr::compute_icr::Response &res)
+{
+
+
+  std::cout<<"computing"<<std::endl;
+  return res.success;
+}
+bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object::Response &res)
+{
+  data_mutex_.lock();
+   obj_loader_->loadObject(req.path,req.name);
+  
+   if(obj_loader_->objectLoaded())
+     res.success=true;
+   else
+     res.success=false;
+
+  return res.success;
+  data_mutex_.unlock();
+}
+
 
 int main(int argc, char **argv)
 {
@@ -82,36 +132,13 @@ int main(int argc, char **argv)
   ros::NodeHandle n;
 
   ros::ServiceServer compute_icr_service = n.advertiseService("compute_icr", compute);
+  IcrServer server;
   ROS_INFO("Ready to compute ICR");
   ros::spin();
 
   return 0;
 }
 
-
-class IcrServer
-{
-private:
-
-  ros::NodeHandle nh_;
-  ros::ServiceServer compute_icr_service_;
-  ICR::ObjectLoader* obj_loader_;
-  boost::mutex data_mutex_;
-public:
- 
-  IcrServer();
-  void compute_icr(icr::compute_icr::Request  &req, icr::compute_icr::Response &res);
-};
-
-  IcrServer::IcrServer()
-  {
-    std::cout<<"Constructor of IcrServer"<<std::endl;
-  }
-
-void IcrServer::compute_icr(icr::compute_icr::Request  &req, icr::compute_icr::Response &res)
-{
-  std::cout<<"computing"<<std::endl;
-}
 
 //some dummy changes
 // include <PointCloudUtils.hh>
