@@ -3,20 +3,19 @@
 #include <time.h>
 
 //----------------------------------------------------------------------------------------
-IcrServer::IcrServer() : obj_loader_(new ICR::ObjectLoader()) 
+IcrServer::IcrServer() : obj_loader_(new ICR::ObjectLoader()), finger_parameters_(new ICR::FParamList())
   {
     compute_icr_service_=nh_.advertiseService("/icr_server/compute_icr",&IcrServer::computeIcr,this);
     load_wfront_obj_service_=nh_.advertiseService("/icr_server/load_wfront_obj",&IcrServer::loadWfrontObj,this);
-
-    std::cout<<"Constructor of IcrServer"<<std::endl;
   }
 //----------------------------------------------------------------------------------------
 IcrServer::~IcrServer()
 {
   delete obj_loader_;
+  delete finger_parameters_;
 }
 //----------------------------------------------------------------------------------------
-bool IcrServer::computeIcr(icr::compute_icr::Request  &req, icr::compute_icr::Response &res)
+bool IcrServer::computeIcr(icr::compute_icr::Request  &req, icr::compute_icr::Response &res)//call from terminal with e.g. the following arguments: "centerpoint_ids: [1,2,3,4,5]"
 {
 
   if(!obj_loader_->objectLoaded())
@@ -85,27 +84,28 @@ bool IcrServer::computeIcr(icr::compute_icr::Request  &req, icr::compute_icr::Re
   // std::cout<<"Computation time: "<<c_time<<" s"<<std::endl;
 }
 //----------------------------------------------------------------------------------------
-bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object::Response &res)
+bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object::Response &res) // call from terminal with e.g. following arguments: '{path: /home/rkg/ros/aass_icr/libicr/icrcpp/models/beer_can.obj, name: beer_can}'
 {
-  data_mutex_.lock();
+  //data_mutex_.lock();
    obj_loader_->loadObject(req.path,req.name);
   
-   if(obj_loader_->objectLoaded())
+   if((obj_loader_->objectLoaded()) & (obj_loader_->getObject()->getNumCp() > 0))
      res.success=true;
    else
+     {
+       ROS_INFO("The loaded target object must be valid");
      res.success=false;
+     }
 
   return res.success;
-  data_mutex_.unlock();
+  //  data_mutex_.unlock();
 }
 //----------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "icr_srv");
-  ros::NodeHandle n;
 
-  //  ros::ServiceServer compute_icr_service = n.advertiseService("compute_icr", compute);
   IcrServer server;
   ROS_INFO("ICR server ready");
   ros::spin();

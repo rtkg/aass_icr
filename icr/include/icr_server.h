@@ -16,6 +16,7 @@ private:
   ros::ServiceServer compute_icr_service_;
   ros::ServiceServer load_wfront_obj_service_;
   ICR::ObjectLoader* obj_loader_;
+  ICR::FParamList* finger_parameters_;
   boost::mutex data_mutex_;
 
 public:
