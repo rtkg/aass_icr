@@ -17,7 +17,7 @@ IcrServer::~IcrServer()
 //----------------------------------------------------------------------------------------
 bool IcrServer::computeIcr(icr::compute_icr::Request  &req, icr::compute_icr::Response &res)//call from terminal with e.g. the following arguments: "centerpoint_ids: [1,2,3,4,5]"
 {
-
+  data_mutex_.lock();
   if(!obj_loader_->objectLoaded())
     {
     ROS_INFO("A valid target object needs to be loaded prior to the ICR computation.");
@@ -70,6 +70,7 @@ bool IcrServer::computeIcr(icr::compute_icr::Request  &req, icr::compute_icr::Re
    std::cout<<icr;
 
    res.success=true;
+   data_mutex_.unlock();
    return res.success;
 
   // Utility for timing selected parts of the code - uncomment below and put the code to be timed at the marked location
@@ -86,9 +87,8 @@ bool IcrServer::computeIcr(icr::compute_icr::Request  &req, icr::compute_icr::Re
 //----------------------------------------------------------------------------------------
 bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object::Response &res) // call from terminal with e.g. following arguments: '{path: /home/rkg/ros/aass_icr/libicr/icrcpp/models/beer_can.obj, name: beer_can}'
 {
-  //data_mutex_.lock();
+   data_mutex_.lock();
    obj_loader_->loadObject(req.path,req.name);
-  
    if((obj_loader_->objectLoaded()) & (obj_loader_->getObject()->getNumCp() > 0))
      res.success=true;
    else
@@ -96,9 +96,8 @@ bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object:
        ROS_INFO("The loaded target object must be valid");
      res.success=false;
      }
-
+  data_mutex_.unlock();
   return res.success;
-  //  data_mutex_.unlock();
 }
 //----------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------
