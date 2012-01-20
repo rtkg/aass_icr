@@ -1,0 +1,18 @@
+
+---
+string[] parameter_list
+
+#parameter_list
+#==============
+#uint8  finger_id
+#float32 force_magnitude
+#uint8 fc_disc
+#float32 mu_0
+#float32 mu_T
+#string contact_type - Frictionless/Frictional/Soft_Finger
+#string model_type - Single_Point/Multi_Point
+#float32 ir_param 
+#bool filter_patch
+
+
+
