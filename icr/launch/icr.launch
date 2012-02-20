@@ -1,0 +1,7 @@
+<launch>
+
+  <node pkg="icr" name="icr" type="icr_server" output="screen">
+    <!-- <param name="cyberglove_prefix" type="string" value="/aass_cyberglove" />  -->
+  </node>
+
+</launch>
