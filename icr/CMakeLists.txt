@@ -28,6 +28,6 @@ rosbuild_gensrv()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
-rosbuild_add_executable(icr_server src/icr_server.cpp)
+rosbuild_add_executable(icr_server src/icr_server.cpp src/icr_server_node.cpp)
 
 

@@ -166,15 +166,4 @@ bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object:
   return res.success;
 }
 //----------------------------------------------------------------------------------------
-//----------------------------------------------------------------------------------------
-int main(int argc, char **argv)
-{
-  ros::init(argc, argv, "icr_srv");
 
-  IcrServer server;
-  ROS_INFO("ICR server ready");
-  ros::spin();
-
-  return 0;
-}
-//----------------------------------------------------------------------------------------
