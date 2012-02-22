@@ -30,11 +30,15 @@ build/*/RelWithDebInfo/*
 build
 icr/build/
 icr/bin/
+icr/models/
 icr/src/icr
 icr/srv_gen
 libicr/icrcpp
 libobj/obj-1.0
 libqhull/Qhull-2011.2
+*.obj
+*.urdf
+*.stl
 *.a
 *.dll
 *.lib

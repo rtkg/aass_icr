@@ -8,6 +8,8 @@
   <rosdep name="boost" />
   <depend package="libobj"/>
   <depend package="libqhull"/>
+  <depend package="geometry_msgs"/>
+  <depend package="gazebo_msgs"/>
   <depend package="libicr"/>
   <depend package="eigen"/>
   <depend package="roscpp"/>

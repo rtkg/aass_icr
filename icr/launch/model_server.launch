@@ -1,0 +1,7 @@
+<launch>
+  <node pkg="icr" name="model_server" type="model_server" output="screen">
+     <param name="icr_prefix" type="string" value="/icr" />  
+     <param name="gazebo_prefix" type="string" value="/gazebo" />  
+  </node>
+
+</launch>

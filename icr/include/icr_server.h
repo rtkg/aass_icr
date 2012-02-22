@@ -13,7 +13,7 @@ class IcrServer
 {
 private:
 
-  ros::NodeHandle nh_;
+  ros::NodeHandle nh_,nh_private_;
   ros::ServiceServer compute_icr_service_;
   ros::ServiceServer load_wfront_obj_service_;
   ros::ServiceServer add_fingers_service_;
