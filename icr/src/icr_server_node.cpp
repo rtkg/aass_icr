@@ -1,3 +1,8 @@
+/** \file icr_server_node.cpp 
+ * \author Robert Krug 
+ * \brief Just an implementation of icr_server_node. 
+ * Read \ref IcrServer for more details.
+ */
 #include <ros/ros.h>
 #include "../include/icr_server.h"
 

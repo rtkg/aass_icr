@@ -1,3 +1,5 @@
-uint8[] centerpoint_ids
+uint16[] centerpoint_ids
 ---
 bool success
+uint16[] all_icrs
+

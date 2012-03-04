@@ -1,7 +1,7 @@
 <launch>
 
-  <node pkg="icr" name="icr" type="icr_server" output="screen">
-      <param name="icr_prefix" type="string" value="/icr" />  
+  <node pkg="icr" name="icr" type="icr_server" output="screen" launch-prefix="xterm -e gdb --args">
+      <param name="icr_prefix" type="string" value="" />  
   </node>
 
 </launch>

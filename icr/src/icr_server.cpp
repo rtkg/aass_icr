@@ -2,8 +2,12 @@
 #include <sys/time.h>
 #include <time.h>
 
-//----------------------------------------------------------------------------------------
-IcrServer::IcrServer() : nh_private_("~"), obj_loader_(new ICR::ObjectLoader()), finger_parameters_(new ICR::FParamList())
+//-------------------------------------------------------------------------
+IcrServer::IcrServer() : nh_private_("~"), 
+			 obj_loader_(new ICR::ObjectLoader()), 
+			 finger_parameters_(new ICR::FParamList()), 
+			 icr_(new ICR::IndependentContactRegions()), 
+			 update_fingers_(true)
 {
   std::string param;
   std::string prefix;
@@ -12,17 +16,20 @@ IcrServer::IcrServer() : nh_private_("~"), obj_loader_(new ICR::ObjectLoader()),
 
   compute_icr_service_=nh_.advertiseService(prefix + "/icr_server/compute_icr",&IcrServer::computeIcr,this);
   load_wfront_obj_service_=nh_.advertiseService(prefix + "/icr_server/load_wfront_obj",&IcrServer::loadWfrontObj,this);
-  add_fingers_service_=nh_.advertiseService(prefix + "/icr_server/add_fingers",&IcrServer::addFingers,this);
+  set_finger_number_service_=nh_.advertiseService(prefix + "/icr_server/set_finger_number",&IcrServer::setFingerNumber,this);
   set_finger_parameters_service_=nh_.advertiseService(prefix + "/icr_server/set_finger_parameters",&IcrServer::setFingerParameters,this);
+
 }
-//----------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 IcrServer::~IcrServer()
 {
   delete obj_loader_;
   delete finger_parameters_;
+  delete icr_;
 }
-//----------------------------------------------------------------------------------------
-bool IcrServer::addFingers(icr::add_fingers::Request &req, icr::add_fingers::Response &res)
+//-------------------------------------------------------------------------
+bool IcrServer::setFingerNumber(icr::set_finger_number::Request &req, 
+				icr::set_finger_number::Response &res)
 {
   data_mutex_.lock();
   
@@ -33,19 +40,25 @@ bool IcrServer::addFingers(icr::add_fingers::Request &req, icr::add_fingers::Res
       data_mutex_.unlock();
       return res.success;  
     }
+  
+  ROS_INFO("Setting %d new fingers with default parameters.",req.number);
 
-  ROS_INFO("Adding %d new fingers",req.number);
+  finger_parameters_->clear();
+  update_fingers_ = true;
 
   ICR::FingerParameters default_param;
-  for(unsigned int i=0; i<req.number; i++)
-    finger_parameters_->push_back(default_param);
-
+  for(unsigned int i=0; i<req.number; i++) 
+    {
+      finger_parameters_->push_back(default_param);
+    }
+  
   ROS_INFO("Hand has now %d fingers",finger_parameters_->size());
   res.success=true;
   data_mutex_.unlock();
   return res.success;
 }
-//----------------------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
 bool IcrServer::setFingerParameters(icr::set_finger_parameters::Request &req, icr::set_finger_parameters::Response &res)// from terminal call e.g: 
 //rosservice call /icr_server/set_finger_parameters '{parameter_list: [1]}'
 {
@@ -71,78 +84,113 @@ bool IcrServer::setFingerParameters(icr::set_finger_parameters::Request &req, ic
       std::cout<<"hello"<<req.parameter_list.size()<<std::endl;
    std::cout<<"rec: "<<req.parameter_list[i]<<std::endl;
     }
+
+  update_fingers_ = true;
+
   res.success=true;
   data_mutex_.unlock();
   return res.success;
 
 }
-//----------------------------------------------------------------------------------------
-bool IcrServer::computeIcr(icr::compute_icr::Request  &req, icr::compute_icr::Response &res)//call from terminal with e.g. the following arguments: "centerpoint_ids: [1,2,3,4,5]"
+
+bool IcrServer::computeIcr(icr::compute_icr::Request  &req, 
+			   icr::compute_icr::Response &res) 
 {
+  //Create a vector holding the centerpoint id's contained in the request
+  ICR::VectorXui centerpoint_ids(req.centerpoint_ids.size());
+
+  for(unsigned int i=0; i<req.centerpoint_ids.size();i++) {
+    //centerpoint_ids e.g. [1838, 4526, 4362, 1083, 793] for the cup
+    centerpoint_ids(i)=req.centerpoint_ids[i];  
+  }
+
+  if (computeIcrCore(centerpoint_ids)) {
+    //feed icrs into ros srv
+    //    contact_regions_->at(1)->at(1).patch_ids_.at(1);
+    std::cout << "This is output" << *icr_ << std::endl;
+  }
+
+  // if(icr.icr_computed_)
+  //   {
+  //     for(uint i=0;i<icr.num_contact_regions_;i++)
+  //       {
+  //         stream<<"Centerpoint id's region "<<i<<": ";
+  //         for(uint j=0; j < icr.contact_regions_[i]->size();j++)
+  //           {
+  //             stream<<(*icr.contact_regions_[i])[j]->patch_ids_.front()<<" ";
+  //           }
+  //         stream<<'\n';
+  //       }
+  //   }
+  return true;
+}
+
+
+
+bool IcrServer::computeIcrCore(ICR::VectorXui &centerpoint_ids)
+{
+  bool all_good = true;
+
   data_mutex_.lock();
   if(!obj_loader_->objectLoaded())
     {
       ROS_INFO("A valid target object needs to be loaded prior to the ICR computation");
-      res.success=false;
-      data_mutex_.unlock();
-      return res.success;
+      all_good = false;
     }
-  else if(finger_parameters_->size() < 2)
+  if(finger_parameters_->size() < 2)
     {
       ROS_INFO("Hand has to comprise at least 2 fingers in order to allow computing ICR");
-      res.success=false;
-      data_mutex_.unlock();
-      return res.success;
+      all_good = false;
     }
-  else if(finger_parameters_->size() != req.centerpoint_ids.size())
+  if(finger_parameters_->size() != (uint) centerpoint_ids.size())
     {
       ROS_INFO("The number of given centerpoint id's has to equal the number of fingers on the hand in order to allow computing ICR");
-      res.success=false;
-      data_mutex_.unlock();
-      return res.success;
+      all_good =false;
     }
+  
+  if (all_good) {
+    
+    //  std::stringstream input;
+    //std::copy(req.centerpoint_ids.begin(),req.centerpoint_ids.end(), std::ostream_iterator<unsigned int>(input," ")); 
+    //    ROS_INFO("Computing ICR for object: %s with given centerpoint id's: %s",
+    //	     (obj_loader_->getObject()->getName()).c_str(),input.str().c_str());
 
-  //  std::stringstream input;
-  //std::copy(req.centerpoint_ids.begin(),req.centerpoint_ids.end(), std::ostream_iterator<unsigned int>(input," ")); 
-  //ROS_INFO("Computing ICR for object: %s with given centerpoint id's: %s",(obj_loader_->getObject()->getName()).c_str(),input.str().c_str());
+    //Modify some of the finger parameters of the prototype-grasp.
+    //The third finger utilizies the Multi-Point contact model, patches only contain the center-point
+    //and border points
+    //(*finger_parameters_)[0].setSoftFingerContact(1,6,0.5,0.5);
+    //(*finger_parameters_)[2].setContactModelType(ICR::Multi_Point);
+    // (*finger_parameters_)[2].setInclusionRuleFilterPatch(true);
 
-   //Create a vector holding the centerpoint id's contained in the request
-   ICR::VectorXui centerpoint_ids(req.centerpoint_ids.size());
-   for(unsigned int i=0; i<req.centerpoint_ids.size();i++)
-       centerpoint_ids(i)=req.centerpoint_ids[i];  //centerpoint_ids e.g. [1838, 4526, 4362, 1083, 793] for the cup
+    //Create a prototype grasp and search zones, the parameter alpha
+    //is the scale of the largest origin-centered ball contained by
+    //the Grasp wrench space of the prototype grasp
+    ICR::GraspPtr prototype_grasp(new ICR::Grasp());
+    prototype_grasp->init(*finger_parameters_,obj_loader_->getObject(),centerpoint_ids);
 
-   //Modify some of the finger parameters of the prototype-grasp.
-   //The third finger utilizies the Multi-Point contact model, patches only contain the center-point
-   //and border points
-   //(*finger_parameters_)[0].setSoftFingerContact(1,6,0.5,0.5);
-   //(*finger_parameters_)[2].setContactModelType(ICR::Multi_Point);
-   // (*finger_parameters_)[2].setInclusionRuleFilterPatch(true);
+    if(!prototype_grasp->getGWS()->containsOrigin() )
+      {
+	ROS_INFO("Given prototype grasp is not force closure - Not possible to compute ICR");
+	all_good=false;
+      } 
+    else 
+      {
+	ICR::SearchZonesPtr search_zones(new ICR::SearchZones(prototype_grasp));
+	double alpha=0.5;
+	search_zones->computeShiftedSearchZones(alpha);
 
-   //Create a prototype grasp and search zones, the parameter alpha is the scale of the largest
-   //origin-centered ball contained by the Grasp wrench space of the prototype grasp
-   ICR::GraspPtr prototype_grasp(new ICR::Grasp());
-   prototype_grasp->init(*finger_parameters_,obj_loader_->getObject(),centerpoint_ids);
+	//Create and plot the Independent Contact Regions
+	icr_->setGrasp(prototype_grasp);
+	icr_->setSearchZones(search_zones);
 
-   if(!prototype_grasp->getGWS()->containsOrigin())
-     {
-       ROS_INFO("Given prototype grasp is not force closure - Not possible to compute ICR");
-       res.success=false;
-       data_mutex_.unlock();
-       return res.success;
-     }
+	icr_->computeICR();
+	std::cout << *icr_;
+	
+      }
+  }
+  data_mutex_.unlock();
 
-   ICR::SearchZonesPtr search_zones(new ICR::SearchZones(prototype_grasp));
-   double alpha=0.5;
-   search_zones->computeShiftedSearchZones(alpha);
-
-   //Create and plot the Independent Contact Regions
-   ICR::IndependentContactRegions icr(search_zones,prototype_grasp);
-   icr.computeICR();
-   std::cout<<icr;
-
-   res.success=true;
-   data_mutex_.unlock();
-   return res.success;
+  return all_good;
 
   // Utility for timing selected parts of the code - uncomment below and put the code to be timed at the marked location
   // struct timeval start, end;
@@ -155,7 +203,8 @@ bool IcrServer::computeIcr(icr::compute_icr::Request  &req, icr::compute_icr::Re
   // c_time = end.tv_sec - start.tv_sec + 0.000001 * (end.tv_usec - start.tv_usec);
   // std::cout<<"Computation time: "<<c_time<<" s"<<std::endl;
 }
-//----------------------------------------------------------------------------------------
+
+
 bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object::Response &res) // call from terminal with e.g. following arguments: '{path: /home/rkg/ros/aass_icr/libicr/icrcpp/models/beer_can.obj, name: beer_can}'
 {
    data_mutex_.lock();
@@ -170,5 +219,4 @@ bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object:
   data_mutex_.unlock();
   return res.success;
 }
-//----------------------------------------------------------------------------------------
 

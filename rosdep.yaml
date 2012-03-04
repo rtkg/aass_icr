@@ -29,7 +29,7 @@ Qhull-2011.2:
         make clean
       fi
 
-libicr:
+icrcpp:
   ubuntu: |
       if [ ! -f `rospack find libicr`/icrcpp/lib/libicr.a ] ; then
         cd `rospack find libicr`

@@ -12,7 +12,7 @@
   </export>
   <depend package="libobj"/>
   <depend package="libqhull"/>
-  <rosdep name="libicr"/>
+  <rosdep name="icrcpp"/>
 </package>
 
 
