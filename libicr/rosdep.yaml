@@ -2,17 +2,15 @@ libicr:
   ubuntu: |
       if [ ! -f `rospack find libicr`/icrcpp/lib/libicr.a ] ; then
         cd `rospack find libicr`
-        sudo rm -r -f icrcpp
+        rm -r -f icrcpp
         wget --no-check-certificate https://github.com/rtkg/icrcpp/tarball/master
         tar xpvf master
         mv rtkg-icrcpp-* icrcpp
         rm master
         cd icrcpp
-
-        INCLUDE=`rospack export --lang=cpp --attrib=cflags libobj`
-        INCLUDE+=`rospack export --lang=cpp --attrib=cflags libqhull`
-        INCLUDE+="-I"`pwd`/tools/eigen-eigen-3.0.2
-
-        make INCPATH="$INCLUDE"  
       fi
- 
+      cd `rospack find libicr`/icrcpp
+      INCLUDE=`rospack export --lang=cpp --attrib=cflags libobj`
+      INCLUDE+=`rospack export --lang=cpp --attrib=cflags libqhull`
+      INCLUDE+="-I"`pwd`/tools/eigen-eigen-3.0.2
+      make INCPATH="$INCLUDE" 

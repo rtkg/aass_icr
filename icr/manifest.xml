@@ -7,12 +7,12 @@
   <review status="unreviewed" notes=""/>
   <rosdep name="boost" />
   <depend package="libqhull"/>
+  <depend package="libobj"/>
+  <depend package="roscpp"/>
   <depend package="geometry_msgs"/>
   <depend package="gazebo_msgs"/>
-  <depend package="libobj"/>
-  <depend package="libicr"/>
   <depend package="eigen"/>
-  <depend package="roscpp"/>
+  <depend package="libicr"/>
 </package>
 
 
