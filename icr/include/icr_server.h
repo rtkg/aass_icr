@@ -62,8 +62,9 @@ class IcrServer
    * center-points of a grasp, calculated ICRs and responds with
    * indices of them.  
    *
-   * Called from terminal
-   * \verbatime $ rosservice /icr_server/
+   * Called from terminal (assuming that the grasp and search zones
+   * are precomputed) \verbatime $ rosservice call
+   * /icr_server/compute_icr [1,2,3,4,5]
    *
    * \param req Part of ros srv uint16_t[] containing indices of the
    * center-points of a grasp 

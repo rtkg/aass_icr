@@ -1,9 +1,0 @@
-uint16[] centerpoint_ids
----
-bool success
-uint16[] icr1
-uint16[] icr2
-uint16[] icr3
-uint16[] icr4
-uint16[] icr5
-

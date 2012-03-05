@@ -103,31 +103,32 @@ bool IcrServer::computeIcr(icr::compute_icr::Request  &req,
 
   for(unsigned int i=0; i<req.centerpoint_ids.size();i++) 
     {
-      //centerpoint_ids e.g. [1838, 4526, 4362, 1083, 793] for the cup
-      centerpoint_ids(i)=req.centerpoint_ids[i];  
+      if (req.used[i])
+	{
+	  //centerpoint_ids e.g. [1838, 4526, 4362, 1083, 793] for the cup
+	  centerpoint_ids(i)=req.centerpoint_ids[i];  
+	}
     }
 
   if (computeIcrCore(centerpoint_ids)) 
     {
-      //feed icrs into ros srv
-      //    contact_regions_->at(1)->at(1).patch_ids_.at(1);
       std::cout << "This is output" << *icr_ << std::endl;
-
-      res.success = icr_->icrComputed();
-    
+      
       if(icr_->icrComputed() )
-	{
-	  uint16_t stx_marker(65535); //marker indicating that an icr is starting
-	  uint16_t number_all_in_icrs = 0; 
+	{ 
+	  // reserve memory in the output vector
+	  uint16_t number = 0; // number of elements in all ICRs
 	  for(uint i=0 ; i<icr_->getNumContactRegions() ; i++) 
-	    { // count number of patch centers in all ICRS 
-	      number_all_in_icrs += icr_->getContactRegion(i)->size();
+	    {
+	      number += icr_->getContactRegion(i)->size();
 	    }
-	  res.all_icrs.reserve(number_all_in_icrs);
-
+	  res.all_icrs.reserve(number);
+	  
+	  // fill in ICRs into output vector
 	  for(uint i=0 ; i<icr_->getNumContactRegions() ; i++)
-	    { // fill in ICRs into output vector
-	      res.all_icrs.push_back(stx_marker);
+	    { 
+	      res.stx.push_back( res.all_icrs.size() );
+	      res.len.push_back( icr_->getContactRegion(i)->size() );
 	      for(uint j=0; j < icr_->getContactRegion(i)->size();j++)
 		{
 		  res.all_icrs.push_back(icr_->getContactRegion(i)->at(j)->patch_ids_.front());

@@ -1,4 +1,5 @@
 /** \file icr_client.cpp
+ *
  * \author Krzysztof Charusta
  * \date 26 Deb 2012
  * \brief This node is testgin the icr_server node.
@@ -14,6 +15,8 @@
 using std::cout;
 using std::endl;
 using std::string;
+
+bool processOutput(icr::compute_icr::Response &res);
 
 int main(int argc, char **argv)
 {
@@ -47,7 +50,7 @@ int main(int argc, char **argv)
   icr::compute_icr compute_icr_srv;
 
   string tmpName("example_object");
-  uint16_t myints[] = {1, 2, 3, 4, 5};
+  uint16_t myints[] =  {1838, 4526, 4362, 1083, 793};
   std::vector<uint16_t> 
     tmpPts(myints, myints + sizeof(myints) / sizeof(uint16_t) );
 
@@ -60,6 +63,8 @@ int main(int argc, char **argv)
   load_object_srv.request.name = tmpName;
 
   compute_icr_srv.request.centerpoint_ids = tmpPts;
+  std::vector<uint8_t> tmp_used(5,1);
+  compute_icr_srv.request.used = tmp_used;
 
   ROS_INFO("Path where the *.obj file will be searched:"); 
   ROS_INFO("%s", load_object_srv.request.path.c_str());
@@ -84,6 +89,7 @@ int main(int argc, char **argv)
     if (clientComputeICR.call(compute_icr_srv)) {
       ROS_INFO("Response: %ld", (long int)compute_icr_srv.response.success);
       ROS_INFO("ICR server responded somehow. Be happy.");
+      processOutput(compute_icr_srv.response);
     } else {
       ROS_ERROR("Failed to call service /icr_server/compute_icr");
     }
@@ -92,4 +98,19 @@ int main(int argc, char **argv)
   }
   
   return 0;
+}
+
+
+bool processOutput(icr::compute_icr::Response &res) 
+{
+  ROS_INFO("Processing data");
+  
+  for (uint j=0; j<res.stx.size();++j) {    
+    cout << "icr " << j << endl;
+    for(uint i=res.stx[j]; i<res.stx[j]+res.len[j] ;++i) {
+      cout << res.all_icrs.at(i) << " ";
+    }
+    cout << endl;
+  }
+  return true;
 }

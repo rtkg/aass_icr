@@ -30,7 +30,6 @@ build/*/RelWithDebInfo/*
 build
 icr/build/
 icr/bin/
-icr/models/
 icr/src/icr
 icr/srv_gen
 libicr/icrcpp
