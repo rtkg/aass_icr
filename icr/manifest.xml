@@ -12,6 +12,10 @@
   <depend package="gazebo_msgs"/>
   <depend package="libicr"/>
   <depend package="eigen"/>
+  <depend package="urdf_interface"/>
+  <depend package="urdf"/>
+  <depend package="tf"/>
+  <depend package="std_srvs"/>
   <depend package="roscpp"/>
 </package>
 

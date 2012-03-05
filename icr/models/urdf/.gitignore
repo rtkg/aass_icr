@@ -38,7 +38,6 @@ libqhull/Qhull-2011.2
 *.obj
 *.urdf
 *.stl
-*.zip
 *.a
 *.dll
 *.lib
