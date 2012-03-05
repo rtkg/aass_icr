@@ -99,30 +99,49 @@ bool IcrServer::computeIcr(icr::compute_icr::Request  &req,
   //Create a vector holding the centerpoint id's contained in the request
   ICR::VectorXui centerpoint_ids(req.centerpoint_ids.size());
 
-  for(unsigned int i=0; i<req.centerpoint_ids.size();i++) {
-    //centerpoint_ids e.g. [1838, 4526, 4362, 1083, 793] for the cup
-    centerpoint_ids(i)=req.centerpoint_ids[i];  
-  }
+  bool all_good = true;
 
-  if (computeIcrCore(centerpoint_ids)) {
-    //feed icrs into ros srv
-    //    contact_regions_->at(1)->at(1).patch_ids_.at(1);
-    std::cout << "This is output" << *icr_ << std::endl;
-  }
+  for(unsigned int i=0; i<req.centerpoint_ids.size();i++) 
+    {
+      //centerpoint_ids e.g. [1838, 4526, 4362, 1083, 793] for the cup
+      centerpoint_ids(i)=req.centerpoint_ids[i];  
+    }
 
-  // if(icr.icr_computed_)
-  //   {
-  //     for(uint i=0;i<icr.num_contact_regions_;i++)
-  //       {
-  //         stream<<"Centerpoint id's region "<<i<<": ";
-  //         for(uint j=0; j < icr.contact_regions_[i]->size();j++)
-  //           {
-  //             stream<<(*icr.contact_regions_[i])[j]->patch_ids_.front()<<" ";
-  //           }
-  //         stream<<'\n';
-  //       }
-  //   }
-  return true;
+  if (computeIcrCore(centerpoint_ids)) 
+    {
+      //feed icrs into ros srv
+      //    contact_regions_->at(1)->at(1).patch_ids_.at(1);
+      std::cout << "This is output" << *icr_ << std::endl;
+
+      res.success = icr_->icrComputed();
+    
+      if(icr_->icrComputed() )
+	{
+	  uint16_t stx_marker(65535); //marker indicating that an icr is starting
+	  uint16_t number_all_in_icrs = 0; 
+	  for(uint i=0 ; i<icr_->getNumContactRegions() ; i++) 
+	    { // count number of patch centers in all ICRS 
+	      number_all_in_icrs += icr_->getContactRegion(i)->size();
+	    }
+	  res.all_icrs.reserve(number_all_in_icrs);
+
+	  for(uint i=0 ; i<icr_->getNumContactRegions() ; i++)
+	    { // fill in ICRs into output vector
+	      res.all_icrs.push_back(stx_marker);
+	      for(uint j=0; j < icr_->getContactRegion(i)->size();j++)
+		{
+		  res.all_icrs.push_back(icr_->getContactRegion(i)->at(j)->patch_ids_.front());
+		}
+	    }
+	}
+    } 
+  else 
+    {
+      all_good = false;
+    }
+
+  res.success = icr_->icrComputed();
+  return all_good;
 }
 
 
