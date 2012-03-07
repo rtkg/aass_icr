@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <string>
 
+
 using std::cout;
 using std::endl;
 using std::string;
@@ -51,6 +52,8 @@ int main(int argc, char **argv)
 
   string tmpName("example_object");
   uint16_t myints[] =  {1838, 4526, 4362, 1083, 793};
+  //uint16_t myints[] =  {1, 2, 3, 4, 5};
+
   std::vector<uint16_t> 
     tmpPts(myints, myints + sizeof(myints) / sizeof(uint16_t) );
 
@@ -66,7 +69,7 @@ int main(int argc, char **argv)
   std::vector<uint8_t> tmp_used(5,1);
   compute_icr_srv.request.used = tmp_used;
 
-  ROS_INFO("Path where the *.obj file will be searched:"); 
+  ROS_INFO("Path where the *.obj is located:"); 
   ROS_INFO("%s", load_object_srv.request.path.c_str());
   ROS_INFO("Object will have default name: %s",load_object_srv.request.name.c_str());
   ROS_INFO("Nuber of loaded center-points: %d",compute_icr_srv.request.centerpoint_ids.size());
@@ -104,10 +107,13 @@ int main(int argc, char **argv)
 bool processOutput(icr::compute_icr::Response &res) 
 {
   ROS_INFO("Processing data");
-  
+
+  cout << "KURWA "<<  res.stx.size() << endl;
+  cout << "KURWA "<<  res.len.size() << endl;
+
   for (uint j=0; j<res.stx.size();++j) {    
-    cout << "icr " << j << endl;
-    for(uint i=res.stx[j]; i<res.stx[j]+res.len[j] ;++i) {
+    cout << "icr " << j << " " << res.stx[j] << " " << res.len[j] << endl;
+    for(uint i=res.stx[j]; i<res.stx[j]+res.len[j] ;i++) {
       cout << res.all_icrs.at(i) << " ";
     }
     cout << endl;

@@ -17,6 +17,7 @@
   <depend package="urdf"/>
   <depend package="tf"/>
   <depend package="std_srvs"/>
+  <depend package="pcl"/>
 </package>
 
 

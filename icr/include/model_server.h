@@ -3,8 +3,9 @@
  * @date   Wed Feb 22 2012
  *
  *
- *Implements a model server which spawns object models used fot the icr computation in gazebo and
- *pushes the according urdf files on the parameter server for RVIZ - visualization. Also a proper tf
+ *Implements a model server which spawns object models used fot the
+ *icr computation in gazebo and pushes the according urdf files on the
+ *parameter server for RVIZ - visualization. Also a proper tf
  *transform is published to track the object in RVIZ.
  *
  */
@@ -41,9 +42,9 @@ class ModelServer
   //  CALLBACKS  //
   /////////////////
 
- /**
-   *  Spawns the given urdf model as "icr_object" in gazebo, if such an object already exists it is
-   *  deleted. Also, the urdf file is pushed onto the parameter server.
+ /** \brief Spawns the given urdf model as "icr_object" in gazebo, if such
+   *  an object already exists it is deleted. Also, the urdf file is
+   *  pushed onto the parameter server.
    */
   bool loadModel(icr::load_model::Request  &req, icr::load_model::Response &res);
   void getModelStates(gazebo_msgs::ModelStates const & states);

@@ -2,6 +2,12 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include <sensor_msgs/PointCloud2.h>
+// PCL specific includes
+#include <pcl/ros/conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+
 //-------------------------------------------------------------------------
 IcrServer::IcrServer() : nh_private_("~"), 
 			 obj_loader_(new ICR::ObjectLoader()), 
@@ -19,6 +25,7 @@ IcrServer::IcrServer() : nh_private_("~"),
   set_finger_number_service_=nh_.advertiseService(prefix + "/icr_server/set_finger_number",&IcrServer::setFingerNumber,this);
   set_finger_parameters_service_=nh_.advertiseService(prefix + "/icr_server/set_finger_parameters",&IcrServer::setFingerParameters,this);
 
+  pub_icr_cloud_ = nh_.advertise<sensor_msgs::PointCloud2> (prefix + "/icr_server/icr_cloud", 1, true);
 }
 //-------------------------------------------------------------------------
 IcrServer::~IcrServer()
@@ -123,7 +130,6 @@ bool IcrServer::computeIcr(icr::compute_icr::Request  &req,
 	      number += icr_->getContactRegion(i)->size();
 	    }
 	  res.all_icrs.reserve(number);
-	  
 	  // fill in ICRs into output vector
 	  for(uint i=0 ; i<icr_->getNumContactRegions() ; i++)
 	    { 
@@ -134,6 +140,7 @@ bool IcrServer::computeIcr(icr::compute_icr::Request  &req,
 		  res.all_icrs.push_back(icr_->getContactRegion(i)->at(j)->patch_ids_.front());
 		}
 	    }
+	  publishICRpc(res);
 	}
     } 
   else 
@@ -240,3 +247,33 @@ bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object:
   return res.success;
 }
 
+
+void IcrServer::publishICRpc(icr::compute_icr::Response &res) {
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>() ); 
+  
+  double scale = 0.001;
+  
+  if ( icr_->icrComputed() ) {
+    //clear pc
+    cloud->clear();
+    //fill in
+    for(uint i=0 ; i<icr_->getNumContactRegions() ; i++) { 
+      for(uint j=0; j < icr_->getContactRegion(i)->size();j++) {
+	uint pt_id = icr_->getContactRegion(i)->at(j)->patch_ids_.front();
+	const Eigen::Vector3d* pt_e = obj_loader_->getObject()->getContactPoint(pt_id)->getVertex();
+       	std::cout << (float)pt_e->x() <<" "<< (float)pt_e->x() /1000.0 << std::endl;
+	pcl::PointXYZ pt((float)pt_e->x()*scale,
+			 (float)pt_e->y()*scale,
+			 (float)pt_e->z()*scale);
+	cloud->points.push_back(pt);
+      }
+    }
+  }
+  cloud->header.frame_id = "fixed";
+  cloud->width = cloud->points.size();
+  cloud->height = 1;
+  sensor_msgs::PointCloud2 output_cloud;
+  pcl::toROSMsg(*cloud,output_cloud);
+  pub_icr_cloud_.publish(output_cloud);
+}

@@ -17,8 +17,10 @@ int main(int argc, char **argv)
 
   IcrServer server;
   ROS_INFO("ICR server ready");
-  ros::spin();
-
+  //  while(ros::ok()) {
+    
+    ros::spin();
+    //  }
   return 0;
 }
 //---------------------------------------------------------------------

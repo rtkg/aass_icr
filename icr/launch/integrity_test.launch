@@ -1,0 +1,15 @@
+<launch>
+  <node pkg="icr" name="model_server" type="model_server" output="screen">
+     <param name="icr_prefix" type="string" value="" />  
+     <param name="gazebo_prefix" type="string" value="/gazebo" />
+  </node>
+
+  <node pkg="icr" name="icr" type="icr_server" output="screen" launch-prefix="xterm -e gdb --args">
+      <param name="icr_prefix" type="string" value="" />  
+  </node>
+
+  <node pkg="rviz" name="rviz_visualizer" type="rviz">
+      <param name="icr_prefix" type="string" value="" />  
+  </node>
+
+</launch>

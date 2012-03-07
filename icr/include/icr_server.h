@@ -10,6 +10,15 @@
 #include "../srv_gen/cpp/include/icr/set_finger_parameters.h"
 #include <boost/thread/mutex.hpp>
 
+//#include <sensor_msgs/PointCloud.h>
+// PCL specific includes
+//#include <pcl/ros/conversions.h>
+//#include <pcl/point_cloud.h>
+//#include <pcl/point_types.h>
+
+
+
+
 /** \class IcrServer icr_server.h 
  * \brief Server that computes Independent Contact Regions
  *
@@ -30,15 +39,17 @@
 class IcrServer
 {
  private:
-
+  //
   ros::NodeHandle nh_,nh_private_;
+  //
   ros::ServiceServer compute_icr_service_;
   ros::ServiceServer load_wfront_obj_service_;
   ros::ServiceServer set_finger_number_service_;
   ros::ServiceServer set_finger_parameters_service_;
+  //
+  ros::Publisher pub_icr_cloud_;
+  //
   boost::mutex data_mutex_;
-
-  bool computeIcrCore(ICR::VectorXui &centerpoint_ids);
 
   ICR::ObjectLoader* obj_loader_;
   ICR::FParamList* finger_parameters_;
@@ -49,6 +60,10 @@ class IcrServer
    * implemented. Right now grasp is recalculated every time.
    */
    bool update_fingers_;
+
+  bool computeIcrCore(ICR::VectorXui &centerpoint_ids);
+  void publishICRpc(icr::compute_icr::Response &res);
+
 
  public:
  
@@ -74,23 +89,11 @@ class IcrServer
   bool computeIcr(icr::compute_icr::Request  &req, 
 		  icr::compute_icr::Response &res);
 
-  /** \brief Ros service. Computes ICRs in the same way as the \ref
-   *  computeIcr but the indices are returned in vectors -- one for
-   *  each fingers. This service works for hands with up to 5 fingers
-   *  maximum. If the hand has more fingers their respective ICRs are
-   *  not returned. 
-   * 
-   * \return Ros srv icr/compute_icr5 structure containing 5 vectors
-   * with point indices and bool set to true if fun executed correctly.
-   */
-  bool computeIcr5fingers(icr::compute_icr5::Request  &req, 
-			  icr::compute_icr5::Response &res);
-
   /** \brief ROS service. Loads an *.obj file into IcrServer. return
    * true if succeded.
    * 
    * From command line: 
-   * \verbatime $ rosservice /icr_server/load_wfront_obj call <path_to_a_file> <name> \endverbatime
+   * \verbatime $ rosservice call /icr_server/load_wfront_obj <path_to_a_file> <name> \endverbatime
    */
   bool loadWfrontObj(icr::load_object::Request  &req, 
 		     icr::load_object::Response &res);
