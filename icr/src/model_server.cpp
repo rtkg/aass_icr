@@ -69,7 +69,13 @@ bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Res
   std::string line;
   std::string model;
   std::ifstream file(req.urdf_file.c_str());
- 
+
+  if(!file.is_open()) 
+    {
+     ROS_ERROR("Could not open file %s",req.urdf_file.c_str());
+     data_mutex_.unlock();
+     return res.success;
+    }
   while(!file.eof()) // Parse the contents of the given urdf in a string
     {
       std::getline(file,line);
