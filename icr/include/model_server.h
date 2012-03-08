@@ -17,6 +17,7 @@
 #include "../srv_gen/cpp/include/icr/load_model.h"
 #include <boost/thread/mutex.hpp>
 #include <gazebo_msgs/ModelStates.h>
+#include <tf/transform_broadcaster.h>
 
 class ModelServer
 {
@@ -29,7 +30,10 @@ class ModelServer
 
   ros::NodeHandle nh_, nh_private_;
   boost::mutex data_mutex_;
-  std::string root_link_name_;
+  tf::TransformBroadcaster tf_brc_;
+  std::string model_name_;
+  std::string model_dir_;
+
   ros::ServiceServer load_object_srv_;
   ros::ServiceClient gazebo_spawn_clt_; 
   ros::ServiceClient gazebo_delete_clt_; 

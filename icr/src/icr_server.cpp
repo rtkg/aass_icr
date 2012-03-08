@@ -40,7 +40,7 @@ bool IcrServer::addFingers(icr::add_fingers::Request &req, icr::add_fingers::Res
   for(unsigned int i=0; i<req.number; i++)
     finger_parameters_->push_back(default_param);
 
-  ROS_INFO("Hand has now %d fingers",finger_parameters_->size());
+  ROS_INFO("Hand has now %d fingers",(int)finger_parameters_->size());
   res.success=true;
   data_mutex_.unlock();
   return res.success;
