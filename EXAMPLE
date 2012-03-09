@@ -1,0 +1,8 @@
+rosservice call /model_server/load_object '{urdf_file: "/home/chrust/src/ROS/aass_icr/icr/models/urdf/Yellow_beer_can.urdf"
+
+rosrun icr icr_client 5 /home/chrust/src/ROS/aass_icr/libicr/icrcpp/models/beer_can.obj
+
+
+ <node pkg="icr" name="icr" type="icr_server" output="screen" launch-prefix="xterm -e gdb --args">
+      <param name="icr_prefix" type="string" value="" />  
+  </node>

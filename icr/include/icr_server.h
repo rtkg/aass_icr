@@ -4,20 +4,18 @@
 #include "ros/ros.h"
 #include "icr.h"
 #include "../srv_gen/cpp/include/icr/compute_icr.h"
-#include "../srv_gen/cpp/include/icr/compute_icr5.h"
 #include "../srv_gen/cpp/include/icr/load_object.h"
 #include "../srv_gen/cpp/include/icr/set_finger_number.h"
 #include "../srv_gen/cpp/include/icr/set_finger_parameters.h"
+#include "icr/finger_tips.h"
 #include <boost/thread/mutex.hpp>
+#include <sensor_msgs/PointCloud2.h>
 
 //#include <sensor_msgs/PointCloud.h>
 // PCL specific includes
 //#include <pcl/ros/conversions.h>
 //#include <pcl/point_cloud.h>
 //#include <pcl/point_types.h>
-
-
-
 
 /** \class IcrServer icr_server.h 
  * \brief Server that computes Independent Contact Regions
@@ -43,33 +41,49 @@ class IcrServer
   ros::NodeHandle nh_,nh_private_;
   //
   ros::ServiceServer compute_icr_service_;
+  ros::ServiceServer compute_icr_file_server_;
   ros::ServiceServer load_wfront_obj_service_;
   ros::ServiceServer set_finger_number_service_;
   ros::ServiceServer set_finger_parameters_service_;
+  /** \brief Discard previous configuration of fingers. Configures the
+   *   fingers according to input file.
+   */
+  ros::ServiceServer set_fingers_service_;
   //
-  ros::Publisher pub_icr_cloud_;
+  ros::Publisher pub_icr_cloud_; 
   //
+  ros::Subscriber sub_finger_tips_;
   boost::mutex data_mutex_;
 
   ICR::ObjectLoader* obj_loader_;
   ICR::FParamList* finger_parameters_;
+  ICR::FingerParameters default_finger_params_; 
   ICR::IndependentContactRegions* icr_;
-  /** \brief If true, the \ref ICR::IndependentContactRegions::grasp_
-   * "grasp" needs to be updated prior to icr computation because the
-   * \ref finger_parameters_ or the OWS has changed. Not fully
-   * implemented. Right now grasp is recalculated every time.
+  sensor_msgs::PointCloud2 output_cloud_;
+  /** \brief Should be set <true> whenever, the \ref
+   * ICR::IndependentContactRegions::grasp_ "grasp" needs to be
+   * updated prior to icr computation because the \ref
+   * finger_parameters_ or the OWS has changed. The update is done in
+   * \ref computeIcrCore and the variable is set to <false>.
    */
-   bool update_fingers_;
+   bool grasp_update_needed_;
+  double alpha_shift_; ///< fraction of the TWS sphere that determines the search zones
 
-  bool computeIcrCore(ICR::VectorXui &centerpoint_ids);
-  void publishICRpc(icr::compute_icr::Response &res);
+   bool loadFingerParameters();
+   bool updateOneFinger(XmlRpc::XmlRpcValue &finger_config,
+			ICR::FingerParameters *finger_out);
 
+   bool computeIcrCore(ICR::VectorXui &centerpoint_ids);
+
+   void publishICRpc(icr::compute_icr::Response &res);
+
+   void fingerTipCallback(const icr::finger_tips& msg);
 
  public:
  
   IcrServer();
   ~IcrServer();
-
+  void publishCloud();
   /** \brief ROS service. Computes ICRs. 
    *
    * Given that all prerequisites are done (e.g. file loaded, fingers

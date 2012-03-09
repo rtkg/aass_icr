@@ -1,0 +1,15 @@
+# this is a template of hand configuration file necessary by icr server to work
+# Note: if only one value for given tag is specified then this value is common for 
+# all fingers
+finger_ids: [0, 1, 2, 3, 4] # uint8_t
+finger_description: [thumb, index, middle, pinky, little] # string
+force_magnitude: [1] # float32_t
+fc_disc: [8] # uint8_t, friction cone discretization 
+mu_0: [0.8, 0.6, 0.6, 0.7, 0.8] # float32_t
+mu_T: [0.0] # float32_t
+contact_type: [Frictional] # string, alternatives: Frictionless/Frictional/Soft_Finger
+model_type: [Single_Point] # string, alternatives: Single_Point/Multi_Point
+filter_patch: 0 # bool, if model_type is Multi_Point then a filtered patch is defined by vertices only on the border of such patch.
+
+
+
