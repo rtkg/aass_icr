@@ -16,6 +16,13 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
+rosbuild_add_boost_directories()
+
+SET(debug_mode $ENV{DEBUG})
+IF(DEFINED debug_mode)
+  SET( CMAKE_CXX_FLAGS "-D DEBUG")
+ENDIF(DEFINED debug_mode)
+
 #uncomment if you have defined messages
 #rosbuild_genmsg()
 #uncomment if you have defined services
@@ -30,3 +37,4 @@ rosbuild_gensrv()
 #target_link_libraries(example ${PROJECT_NAME})
 rosbuild_add_executable(icr_server src/icr_server.cpp src/icr_server_node.cpp)
 rosbuild_add_executable(model_server src/model_server.cpp src/model_server_node.cpp)
+rosbuild_add_executable(grasp_server src/grasp_server.cpp src/grasp_server_node.cpp src/phalange.cpp)

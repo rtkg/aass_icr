@@ -4,8 +4,8 @@
  *
  *
  *Implements a model server which spawns object models used fot the icr computation in gazebo and
- *pushes the according urdf files on the parameter server for RVIZ - visualization. Also a proper tf
- *transform is published to track the object in RVIZ.
+ *pushes the according urdf files on the parameter server for RVIZ - visualization. Also the pose of
+ *the object in the gazebo world frame is broadcasted via tf in order to track the object in RVIZ.
  *
  */
 
@@ -18,7 +18,19 @@
 #include <boost/thread/mutex.hpp>
 #include <gazebo_msgs/ModelStates.h>
 #include <tf/transform_broadcaster.h>
+#include <string>
+#include <iostream>
 
+//----------------------------------------------------------------------------
+struct Model
+{
+  std::string name_;
+  std::string frame_id_;
+  std::string geom_;
+ 
+  friend std::ostream& operator<<(std::ostream &stream,Model const& model);
+};
+//----------------------------------------------------------------------------
 class ModelServer
 {
  public:
@@ -31,8 +43,8 @@ class ModelServer
   ros::NodeHandle nh_, nh_private_;
   boost::mutex data_mutex_;
   tf::TransformBroadcaster tf_brc_;
-  std::string model_name_;
   std::string model_dir_;
+  Model icr_object_;
 
   ros::ServiceServer load_object_srv_;
   ros::ServiceClient gazebo_spawn_clt_; 

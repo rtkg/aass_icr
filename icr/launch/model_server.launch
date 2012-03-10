@@ -6,7 +6,7 @@
      <param name="icr_prefix" type="string" value="/icr" />  
      <param name="gazebo_prefix" type="string" value="/gazebo" />  
      <param name="model_directory" type="string" value="$(find icr)/models/urdf/"/>
- 
+     <param name="reference_frame_id" type="string" value="/world"/>
   </node>
 
 

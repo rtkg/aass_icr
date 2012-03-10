@@ -10,8 +10,21 @@
 #include <iostream>
 #include <fstream>
 
+//--------------------------------------------------------------------------
+std::ostream& operator<<(std::ostream &stream,Model const& model)
+{
+  stream <<'\n'<<"MODEL: "<<'\n'
+         <<"Name: "<<model.name_<<'\n'
+         <<"Frame id: "<<model.frame_id_<<'\n'
+	 <<"Geometry: "<<model.geom_<<'\n'<<'\n';
+
+  return stream;
+}
+//--------------------------------------------------------------------------
 ModelServer::ModelServer() : nh_private_("~")
 {
+  icr_object_.frame_id_="/world"; //initialize the reference frame for the object model
+
   std::string icr_prefix;
   std::string gazebo_prefix;
   std::string param;
@@ -24,9 +37,14 @@ ModelServer::ModelServer() : nh_private_("~")
   nh_private_.searchParam("model_directory", param);
   nh_private_.getParam(param, model_dir_);
 
-  std::cout<<model_dir_<<std::endl;
+  if(nh_private_.searchParam("reference_frame_id", param)) //try to read the reference frame from the parameter server
+    nh_private_.getParam(param, icr_object_.frame_id_);
+  else
+    ROS_WARN("No reference frame id found on the parameter server - using %s",icr_object_.frame_id_.c_str());
+    
 
-  load_object_srv_ = nh_.advertiseService(icr_prefix + "/model_server/load_object",&ModelServer::loadModel,this);
+
+  load_object_srv_ = nh_.advertiseService(icr_prefix + "/load_object",&ModelServer::loadModel,this);
   gazebo_spawn_clt_ = nh_.serviceClient<gazebo_msgs::SpawnModel>(gazebo_prefix + "/spawn_urdf_model");
   gazebo_delete_clt_ = nh_.serviceClient<gazebo_msgs::DeleteModel>(gazebo_prefix + "/delete_model");
   gazebo_pause_clt_ = nh_.serviceClient<std_srvs::Empty>(gazebo_prefix + "/pause_physics");
@@ -39,9 +57,9 @@ void ModelServer::getModelStates(gazebo_msgs::ModelStates const & states)
 {
   bool obj_spawned=false;
   unsigned int icr_object_id;
-  //see if the icr object is spawned, return it not
+  //see if the icr object is spawned, return if not
   for(icr_object_id=0; icr_object_id < states.name.size(); icr_object_id++)
-    if(states.name[icr_object_id]==model_name_)
+    if(states.name[icr_object_id]==icr_object_.name_)
       {
 	obj_spawned=true;
 	break;
@@ -55,7 +73,7 @@ void ModelServer::getModelStates(gazebo_msgs::ModelStates const & states)
   tf::Transform transform;
   transform.setOrigin(tf::Vector3(states.pose[icr_object_id].position.x,states.pose[icr_object_id].position.y,states.pose[icr_object_id].position.z));
   transform.setRotation(tf::Quaternion(states.pose[icr_object_id].orientation.x,states.pose[icr_object_id].orientation.y,states.pose[icr_object_id].orientation.z,states.pose[icr_object_id].orientation.w ));
-  tf_brc_.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", model_name_));
+  tf_brc_.sendTransform(tf::StampedTransform(transform, ros::Time::now(),icr_object_.frame_id_, icr_object_.name_));
 
 }
 bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Response &res)
@@ -64,12 +82,12 @@ bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Res
   res.success=false;
 
   gazebo_msgs::DeleteModel delete_model;
-  delete_model.request.model_name=model_name_;
+  delete_model.request.model_name=icr_object_.name_;
 
   //Delete an icr object in case its already spawned in Gazebo (would be nicer to add a check before
   //and only do this when an icr_object actually exists)
   if(!gazebo_delete_clt_.call(delete_model))
-    ROS_WARN("Could not delete previous icr_object model %s",model_name_.c_str());
+    ROS_WARN("Could not delete previous icr_object model %s",icr_object_.name_.c_str());
 
   std::string line;
   std::string model;
@@ -88,7 +106,7 @@ bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Res
     }
   file.close();
 
-  //Parse the urdf in order to get the root link name
+  //Parse the urdf in order to get the robot name and geometry
   urdf::Model urdf_model;
   if(!urdf_model.initString(model))
     {
@@ -96,13 +114,16 @@ bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Res
       data_mutex_.unlock();
       return res.success;
     }
-  model_name_=urdf_model.getRoot()->name;
+  icr_object_.name_=urdf_model.getName();
+  icr_object_.geom_=urdf_model.getRoot()->name;//FIXXMEEE!!! this is just for testing! the geometry should be read probably via:
+//std::map<std::string, boost::shared_ptr<std::vector<boost::shared_ptr<Collision> > > > collision_groups;
+
 
   gazebo_msgs::SpawnModel spawn_model;
-  spawn_model.request.model_name=model_name_; //name the model after its base link
+  spawn_model.request.model_name=icr_object_.name_; //name the model after its base link
   spawn_model.request.model_xml=model;
   spawn_model.request.initial_pose=req.initial_pose;
-  spawn_model.request.reference_frame="world";
+  spawn_model.request.reference_frame="world"; //spawn the object in Gazebo's world frame
 
   std_srvs::Empty empty;
   gazebo_pause_clt_.call(empty);
@@ -117,7 +138,7 @@ bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Res
   gazebo_unpause_clt_.call(empty);
 
   //Push the loaded file on the parameter server 
-  nh_.setParam("icr_object_description",model);
+  nh_.setParam("icr_object",model);
   
   res.success=true;
   data_mutex_.unlock();
