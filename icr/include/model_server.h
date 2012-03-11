@@ -15,6 +15,7 @@
 
 #include "ros/ros.h"
 #include "../srv_gen/cpp/include/icr/load_model.h"
+#include "../srv_gen/cpp/include/icr/SetObject.h"
 #include <boost/thread/mutex.hpp>
 #include <gazebo_msgs/ModelStates.h>
 #include <tf/transform_broadcaster.h>
@@ -27,7 +28,7 @@ struct Model
   std::string name_;
   std::string frame_id_;
   std::string geom_;
- 
+
   friend std::ostream& operator<<(std::ostream &stream,Model const& model);
 };
 //----------------------------------------------------------------------------
@@ -52,6 +53,7 @@ class ModelServer
   ros::ServiceClient gazebo_pause_clt_; 
   ros::ServiceClient gazebo_unpause_clt_; 
   ros::Subscriber gazebo_modstat_sub_;
+  ros::ServiceClient set_object_clt_;
 
   /////////////////
   //  CALLBACKS  //

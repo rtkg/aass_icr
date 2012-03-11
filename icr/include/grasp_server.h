@@ -14,8 +14,10 @@
 #include "std_msgs/String.h"
 //#include <tf/transform_broadcaster.h>
 #include <gazebo_msgs/ContactsState.h>
+#include "../srv_gen/cpp/include/icr/SetObject.h"
 #include <vector>
 #include "phalange.h"
+#include "model_server.h"
 
 class GraspServer
 {
@@ -29,6 +31,7 @@ class GraspServer
   ros::NodeHandle nh_, nh_private_;
   ros::V_Subscriber phalange_contacts_subs_;
 
+  Model model_;
   std::vector<Phalange*> phalanges_;
 
   /////////////////

@@ -16,19 +16,20 @@
 #include <gazebo_msgs/ContactsState.h>
 #include <tf/tf.h>
 #include <string>
+#include "model_server.h"
 
 class Phalange
 {
  public:
 
  
-  Phalange(tf::Transform const & L_T_Cref,std::string const & link_geom);
+  Phalange(tf::Transform const & L_T_Cref,Model const & model);
   ~Phalange();
 
   void updateContact(gazebo_msgs::ContactsState::ConstPtr& cts_st, std::string const & obj_geom);
   tf::Vector3* getContactPositon();
   tf::Quaternion* getContactOrientation();  
-  std::string* getPhalangeGeom();
+  Model* getModel();
 
  private:
  Phalange();
@@ -40,7 +41,7 @@ class Phalange
 tf::Transform L_T_Cref_;
    tf::Vector3* ct_pos_;
   tf::Quaternion* ct_ori_;
- std::string* link_geom_;
+  Model* model_;
 
   
 

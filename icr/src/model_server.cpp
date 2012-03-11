@@ -50,7 +50,7 @@ ModelServer::ModelServer() : nh_private_("~")
   gazebo_pause_clt_ = nh_.serviceClient<std_srvs::Empty>(gazebo_prefix + "/pause_physics");
   gazebo_unpause_clt_ = nh_.serviceClient<std_srvs::Empty>(gazebo_prefix + "/unpause_physics");
   gazebo_modstat_sub_ = nh_.subscribe(gazebo_prefix + "/model_states", 10, &ModelServer::getModelStates, this);
-
+  set_object_clt_ = nh_.serviceClient<icr::SetObject>("set_object");
 }
 
 void ModelServer::getModelStates(gazebo_msgs::ModelStates const & states)
@@ -139,7 +139,18 @@ bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Res
 
   //Push the loaded file on the parameter server 
   nh_.setParam("icr_object",model);
-  
+
+
+  //Send the object in the grasp server
+  icr::SetObject obj;
+  obj.request.name=icr_object_.name_;
+  obj.request.frame_id=icr_object_.frame_id_;
+  obj.request.geom=icr_object_.geom_;
+   
+  set_object_clt_.call(obj); 
+  if(!obj.response.success)
+    ROS_WARN("Set object client call unsuccessful.");
+
   res.success=true;
   data_mutex_.unlock();
   return res.success;

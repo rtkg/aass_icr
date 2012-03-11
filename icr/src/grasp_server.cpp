@@ -1,7 +1,6 @@
 #include "../include/grasp_server.h"
 #include <tf/tf.h>
 
-
 GraspServer::GraspServer() : nh_private_("~")
 {
   // std::string icr_prefix;
@@ -12,25 +11,44 @@ GraspServer::GraspServer() : nh_private_("~")
 std::string searched_param;
 
  
-  XmlRpc::XmlRpcValue phalange_config;
-  if (nh_private_.searchParam("phalanges", searched_param))
-    {
-      nh_.getParam(searched_param,phalange_config);
-      ROS_ASSERT(phalange_config.getType() == XmlRpc::XmlRpcValue::TypeArray); 
-      for (int32_t i = 0; i < phalange_config.size(); ++i) 
-	{           
-      	ROS_ASSERT(phalange_config[i]["geom"].getType() == XmlRpc::XmlRpcValue::TypeString);
-        ROS_ASSERT(phalange_config[i]["frame_id"].getType() == XmlRpc::XmlRpcValue::TypeString);
+ XmlRpc::XmlRpcValue phalange_config;
+ XmlRpc::XmlRpcValue L_T_Cref;
+	 Model phalange_model;
+ if (nh_private_.searchParam("phalanges", searched_param))
+   {
+     nh_.getParam(searched_param,phalange_config);
+     ROS_ASSERT(phalange_config.getType() == XmlRpc::XmlRpcValue::TypeArray); 
+    
+     for (int32_t i = 0; i < phalange_config.size(); ++i) 
+       {    
+         L_T_Cref=phalange_config[i]["L_T_Cref"];
+	 ROS_ASSERT(phalange_config[i]["link_geom"].getType() == XmlRpc::XmlRpcValue::TypeString);
+	 ROS_ASSERT(phalange_config[i]["link_frame_id"].getType() == XmlRpc::XmlRpcValue::TypeString);
+         ROS_ASSERT(phalange_config[i]["link_name"].getType() == XmlRpc::XmlRpcValue::TypeString);
+	 ROS_ASSERT(L_T_Cref.getType() == XmlRpc::XmlRpcValue::TypeArray);
+         ROS_ASSERT(L_T_Cref.size()==12);//a transformation is specified by a rotation matrix + offset vector
+	 for (int32_t j = 0; j <L_T_Cref.size();j++) 
+	    ROS_ASSERT(L_T_Cref[j].getType() == XmlRpc::XmlRpcValue::TypeDouble);
 
-	}
-    }
-  else
-    {
-    ROS_ERROR("The hand phalange configurations are not specified - cannot start the Grasp Server");
-    exit(0);
-    }
-  boost::shared_ptr<tf::Transform> test;  
+	 tf::Transform tf;
+	 tf.setBasis(btMatrix3x3(L_T_Cref[0],L_T_Cref[1],L_T_Cref[2],L_T_Cref[3],L_T_Cref[4],L_T_Cref[5],L_T_Cref[6],L_T_Cref[7],L_T_Cref[8]));
+	 tf.setOrigin(tf::Vector3(L_T_Cref[9],L_T_Cref[10],L_T_Cref[11]));
 
+	 phalange_model.name_=(std::string)phalange_config[i]["link_name"];
+          phalange_model.geom_=(std::string)phalange_config[i]["link_geom"];
+          phalange_model.frame_id_=(std::string)phalange_config[i]["link_frame_id"];
+
+	 phalanges_.push_back(new Phalange(tf,phalange_model));
+       }
+   }
+ else
+   {
+     ROS_ERROR("The hand phalange configurations are not specified - cannot start the Grasp Server");
+     exit(0);
+   }
+
+  // for(int i=0; i<phalanges_.size();i++)
+  //   std::cout<<"geom: "<<*(phalanges_[i]->getPhalangeGeom())<<std::endl;
   // load_object_srv_ = nh_.advertiseService(icr_prefix + "/load_object",&GraspServer::loadGrasp,this);
   // gazebo_spawn_clt_ = nh_.serviceClient<gazebo_msgs::SpawnGrasp>(gazebo_prefix + "/spawn_urdf_model");
   // gazebo_delete_clt_ = nh_.serviceClient<gazebo_msgs::DeleteGrasp>(gazebo_prefix + "/delete_model");
