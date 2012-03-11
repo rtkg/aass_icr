@@ -2,6 +2,7 @@
 
   <node pkg="icr" name="grasp_server" type="grasp_server" output="screen">
    <!--  <param name="icr_prefix" type="string" value="/icr" />  -->
+        <remap from="set_object" to="/grasp_server/set_object"/>
      <rosparam file="$(find icr)/config/grasp_server_config.yaml" command="load"/>
   </node>
 

@@ -109,15 +109,15 @@ bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Res
   //Parse the urdf in order to get the robot name and geometry
   urdf::Model urdf_model;
   if(!urdf_model.initString(model))
-    {
+    {  
       ROS_ERROR("Could not parse urdf model %s",(model_dir_+req.local_file).c_str());
       data_mutex_.unlock();
       return res.success;
     }
   icr_object_.name_=urdf_model.getName();
-  icr_object_.geom_=urdf_model.getRoot()->name;//FIXXMEEE!!! this is just for testing! the geometry should be read probably via:
-//std::map<std::string, boost::shared_ptr<std::vector<boost::shared_ptr<Collision> > > > collision_groups;
-
+  //Right now, the URDF parser does not support geometry names. Thus, it is implied that the contact
+  //geometry is named after the root link of the object + "_geom"
+  icr_object_.geom_=urdf_model.getRoot()->name + "_geom";
 
   gazebo_msgs::SpawnModel spawn_model;
   spawn_model.request.model_name=icr_object_.name_; //name the model after its base link

@@ -12,7 +12,9 @@ int main(int argc, char **argv)
 
   GraspServer grasp_server;
   ROS_INFO("Grasp server ready");
-  ros::spin();
+  
+  while(ros::ok())
+    grasp_server.spin();
 
   return 0;
 }

@@ -1,0 +1,4 @@
+Initial pose offsets for the /icr/load_object service in order to spawn the objects in a proper initial pose w.r.t the desk specified in /sr_teleop/robot/desk.xml
+
+Sprayflask_5k: rosservice call /icr/load_object '{local_file: "Sprayflask_5k.urdf",initial_pose: {position: [0.88, -0.15, 1.15],orientation: [0.2888,0.6454,0.6454,0.2888]}}'
+

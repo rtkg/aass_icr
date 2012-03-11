@@ -1,15 +1,32 @@
 phalanges:
-     - link_geom: some_geom 
-       link_frame_id: some_frame_id
-       link_name: some_name
-       L_T_Cref: [1.1,2.1,3.1,4.5,1.1,2.1,3.1,4.5,1.1,2.1,3.1,4.5]
+     - link_geom: thdistal_geom
+       link_frame_id: /srh/position/thdistal
+       link_name: thdistal
+       sensor_topic: /thdistal_bumper/state
+       L_T_Cref: [0.0,-0.009,0.022,1.57,0.0,0.0]
     
-     - link_geom: some_other_geom 
-       link_frame_id: some_other_frame_id
-       link_name: some_other_name
-       L_T_Cref: [1.1,2.1,3.1,4.5,1.1,2.1,3.1,4.5,1.1,2.1,3.1,4.5]
+     - link_geom: ffdistal_geom
+       link_frame_id: /srh/position/ffdistal
+       link_name: ffdistal
+       sensor_topic: /ffdistal_bumper/state
+       L_T_Cref: [0.0,-0.007,0.018,1.45,0.0,0.0]
 
+     - link_geom: mfdistal_geom
+       link_frame_id: /srh/position/mfdistal
+       link_name: mfdistal
+       sensor_topic: /mfdistal_bumper/state
+       L_T_Cref: [0.0,-0.007,0.018,1.45,0.0,0.0]
+    
+     - link_geom: rfdistal_geom
+       link_frame_id: /srh/position/rfdistal
+       link_name: rfdistal
+       sensor_topic: /rfdistal_bumper/state
+       L_T_Cref: [0.0,-0.007,0.018,1.45,0.0,0.0]
   
+     - link_geom: lfdistal_geom
+       link_frame_id: /srh/position/lfdistal
+       link_name: lfdistal
+       sensor_topic: /lfdistal_bumper/state
+       L_T_Cref: [0.0,-0.006,0.016,1.45,0.0,0.0]
 
-  
 
