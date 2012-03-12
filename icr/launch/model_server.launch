@@ -1,7 +1,7 @@
 <launch>
-  <!-- start gazebo with an empty plane   -->
+  <!-- start gazebo with an empty plane  
   <include file="$(find sr_hand)/launch/gazebo/empty_world.launch"/> 
-
+ -->
 
   <node pkg="icr" name="model_server" type="model_server" output="screen">
      <param name="icr_prefix" type="string" value="/icr" />  
