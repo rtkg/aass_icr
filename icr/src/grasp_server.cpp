@@ -1,15 +1,14 @@
 #include "../include/grasp_server.h"
 #include <tf/tf.h>
+#include <geometry_msgs/Point.h>
 
 GraspServer::GraspServer() : nh_private_("~")
 {
-  // std::string icr_prefix;
-  // std::string gazebo_prefix;
-  // std::string param;
-  // nh_private_.searchParam("icr_prefix", param);
-  // nh_private_.getParam(param, icr_prefix);
+  std::string icr_prefix;
   std::string searched_param;
 
+  nh_private_.searchParam("icr_prefix",searched_param);
+  nh_private_.getParam(searched_param, icr_prefix);
  
   XmlRpc::XmlRpcValue phalange_config;
   XmlRpc::XmlRpcValue L_T_Cref;
@@ -50,13 +49,8 @@ GraspServer::GraspServer() : nh_private_("~")
     }
 
 
-  set_object_srv_ = nh_.advertiseService("set_object",&GraspServer::setObject,this);
-  // gazebo_spawn_clt_ = nh_.serviceClient<gazebo_msgs::SpawnGrasp>(gazebo_prefix + "/spawn_urdf_model");
-  // gazebo_delete_clt_ = nh_.serviceClient<gazebo_msgs::DeleteGrasp>(gazebo_prefix + "/delete_model");
-  // gazebo_pause_clt_ = nh_.serviceClient<std_srvs::Empty>(gazebo_prefix + "/pause_physics");
-  // gazebo_unpause_clt_ = nh_.serviceClient<std_srvs::Empty>(gazebo_prefix + "/unpause_physics");
-
- 
+  set_target_obj_srv_ = nh_.advertiseService("set_object",&GraspServer::setObject,this);
+  contact_points_pub_=nh_.advertise<icr::ContactPoints>(icr_prefix + "/contact_points",5);
 }
 //-----------------------------------------------------------------------------------------------
 GraspServer::~GraspServer()
@@ -69,12 +63,12 @@ bool GraspServer::setObject(icr::SetObject::Request  &req, icr::SetObject::Respo
 {
   res.success=false;
   lock_.lock();
-  object_.name_=req.name;
-  object_.frame_id_=req.frame_id;
-  object_.geom_=req.geom;
+  target_obj_.name_=req.name;
+  target_obj_.frame_id_=req.frame_id;
+  target_obj_.geom_=req.geom;
 
   for (unsigned int i=0;i<phalanges_.size();i++)
-    phalanges_[i]->setTargetObjGeom(object_.geom_);
+    phalanges_[i]->setTargetObjGeom(target_obj_.geom_);
 
   lock_.unlock();
   res.success=true;
@@ -84,7 +78,16 @@ bool GraspServer::setObject(icr::SetObject::Request  &req, icr::SetObject::Respo
 //-----------------------------------------------------------------------------------------------
 void GraspServer::spin()
 {
+  icr::ContactPoints ct_p;
+  geometry_msgs::Point p;
+  for(unsigned int i = 0; i < phalanges_.size();i++)
+    {
+      tf::pointTFToMsg(*(phalanges_[i]->getContactPositon()),p);
+      ct_p.points.push_back(p);
+      ct_p.touching.push_back(phalanges_[i]->touching());
+     }
 
+  contact_points_pub_.publish(ct_p);
 
  ros::spinOnce();
 }

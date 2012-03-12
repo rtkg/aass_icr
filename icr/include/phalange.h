@@ -4,7 +4,8 @@
  *
  *@brief Subscribes to gazebo_msgs/ContactsState outputted by the sensor_bumpers and computes the
  *average contact position. If the phalange is not in contact it publishes a predefined reference
- *contact point.
+ *contact point. 
+ *
  */
 
 #ifndef phalange_h___
@@ -23,7 +24,13 @@
  *@brief This class represents a phalange of the hand. It subscribes to gazebo_msgs/ContactsState
  *outputted by the sensor_bumpers and computes the average contact position and normal direction for
  *a given target object. If the phalange is not in contact it publishes a predefined reference
- *contact pose.
+ *contact pose. Note, that presently the published geometry_msgs/StampedPose message can create
+ *problems when visualizing in Rviz. This is due to the fact that Rviz only buffers 5
+ *geometry_msgs/StampedPose msgs and proper tf transformations might not be available at the time
+ *the contact pose is published. This can be fixed by increasing the buffer size in
+ *rviz/src/rviz/default_plugin/pose_display.cpp and recompiling Rviz. Currently (in ROS Electric)
+ *there is no way to increase Rviz's tf::MessageFilter queue at runtime. Also using a
+ *topic_tools/throttle should fix the problem (did not test it though...)
  */
 class Phalange
 {

@@ -24,7 +24,7 @@ IF(DEFINED debug_mode)
 ENDIF(DEFINED debug_mode)
 
 #uncomment if you have defined messages
-#rosbuild_genmsg()
+rosbuild_genmsg()
 #uncomment if you have defined services
 rosbuild_gensrv()
 

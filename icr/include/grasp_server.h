@@ -9,7 +9,7 @@
 #define grasp_server_h___
 
 #include "ros/ros.h"
-//#include "../srv_gen/cpp/include/icr/load_model.h"
+#include "../msg_gen/cpp/include/icr/ContactPoints.h"
 #include <boost/thread/mutex.hpp>
 
 //#include <tf/transform_broadcaster.h>
@@ -31,10 +31,11 @@ class GraspServer
  private:
 
   ros::NodeHandle nh_, nh_private_;
-  ros::ServiceServer set_object_srv_;
-  
+  ros::ServiceServer set_target_obj_srv_;
+  ros::Publisher contact_points_pub_;  
+
   boost::mutex lock_;
-  Model object_;
+  Model target_obj_;
   std::vector<Phalange*> phalanges_;
 
   /////////////////

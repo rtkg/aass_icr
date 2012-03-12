@@ -32,9 +32,11 @@ icr/build/
 icr/bin/
 icr/src/icr
 icr/srv_gen
+icr/msg_gen
 libicr/icrcpp
 libobj/obj-1.0
 libqhull/Qhull-2011.2
+*#
 *.obj
 *.urdf
 *.stl
