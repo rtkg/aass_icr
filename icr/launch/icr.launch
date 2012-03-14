@@ -1,0 +1,24 @@
+<launch>
+
+    <group>
+        <param name="gazebo_prefix" type="string" value="/gazebo" /> 
+
+        <node pkg="icr" name="icr" type="icr_server" output="screen" ns="icr_server"/>
+
+        <node pkg="icr" name="model_server" type="model_server" output="screen" ns="model_server">
+            <param name="model_directory" type="string" value="$(find icr)/models/urdf/"/>
+            <param name="reference_frame_id" type="string" value="/fixed"/>
+            <remap from="set_object" to="/grasp_server/set_object"/> 
+       </node>
+
+       <node pkg="icr" name="grasp_server" type="grasp_server" output="screen" ns="grasp_server">
+           <param name="tf_prefix" type="string" value="/srh/position" />  
+           <param name="spin_frequency" type="double" value="100" /> 
+           <rosparam file="$(find icr)/config/grasp_server_config.yaml" command="load"/>
+      </node>
+  </group>
+
+</launch>
+
+
+

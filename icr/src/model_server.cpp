@@ -23,13 +23,11 @@ std::ostream& operator<<(std::ostream &stream,Model const& model)
 //--------------------------------------------------------------------------
 ModelServer::ModelServer() : nh_private_("~")
 {
-  icr_object_.frame_id_="/world"; //initialize the reference frame for the object model
+  ref_frame_id_="/world"; //initialize the reference frame 
 
   std::string icr_prefix;
   std::string gazebo_prefix;
   std::string param;
-  nh_private_.searchParam("icr_prefix", param);
-  nh_private_.getParam(param, icr_prefix);
 
   nh_private_.searchParam("gazebo_prefix", param);
   nh_private_.getParam(param, gazebo_prefix);
@@ -38,13 +36,11 @@ ModelServer::ModelServer() : nh_private_("~")
   nh_private_.getParam(param, model_dir_);
 
   if(nh_private_.searchParam("reference_frame_id", param)) //try to read the reference frame from the parameter server
-    nh_private_.getParam(param, icr_object_.frame_id_);
+    nh_private_.getParam(param, ref_frame_id_);
   else
-    ROS_WARN("No reference frame id found on the parameter server - using %s",icr_object_.frame_id_.c_str());
-    
+    ROS_WARN("No reference frame id found on the parameter server - using %s",ref_frame_id_.c_str());
 
-
-  load_object_srv_ = nh_.advertiseService(icr_prefix + "/load_object",&ModelServer::loadModel,this);
+  load_object_srv_ = nh_.advertiseService("load_object",&ModelServer::loadModel,this);
   gazebo_spawn_clt_ = nh_.serviceClient<gazebo_msgs::SpawnModel>(gazebo_prefix + "/spawn_urdf_model");
   gazebo_delete_clt_ = nh_.serviceClient<gazebo_msgs::DeleteModel>(gazebo_prefix + "/delete_model");
   gazebo_pause_clt_ = nh_.serviceClient<std_srvs::Empty>(gazebo_prefix + "/pause_physics");
@@ -73,7 +69,7 @@ void ModelServer::getModelStates(gazebo_msgs::ModelStates const & states)
   tf::Transform transform;
   transform.setOrigin(tf::Vector3(states.pose[icr_object_id].position.x,states.pose[icr_object_id].position.y,states.pose[icr_object_id].position.z));
   transform.setRotation(tf::Quaternion(states.pose[icr_object_id].orientation.x,states.pose[icr_object_id].orientation.y,states.pose[icr_object_id].orientation.z,states.pose[icr_object_id].orientation.w ));
-  tf_brc_.sendTransform(tf::StampedTransform(transform, ros::Time::now(),icr_object_.frame_id_, icr_object_.name_));
+  tf_brc_.sendTransform(tf::StampedTransform(transform, ros::Time::now(),ref_frame_id_, icr_object_.frame_id_));
 
 }
 bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Response &res)
@@ -118,6 +114,7 @@ bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Res
   //Right now, the URDF parser does not support geometry names. Thus, it is implied that the contact
   //geometry is named after the root link of the object + "_geom"
   icr_object_.geom_=urdf_model.getRoot()->name + "_geom";
+  icr_object_.frame_id_="/"+urdf_model.getRoot()->name;//set the frame id to the base link name
 
   gazebo_msgs::SpawnModel spawn_model;
   spawn_model.request.model_name=icr_object_.name_; //name the model after its base link
@@ -131,7 +128,7 @@ bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Res
     ROS_INFO("Successfully spawned model %s in Gazebo",req.local_file.c_str());
   else
     {
-      ROS_ERROR("Failed to spawn model %s in Gazebo",req.local_file.c_str());
+      ROS_ERROR("Failed to spawn model %s in Gazebo - the model pose will not be broadcasted",req.local_file.c_str());
       data_mutex_.unlock();
       return res.success;
     }
@@ -141,7 +138,7 @@ bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Res
   nh_.setParam("icr_object",model);
 
 
-  //Send the object in the grasp server
+  //Send the object to the grasp server
   icr::SetObject obj;
   obj.request.name=icr_object_.name_;
   obj.request.frame_id=icr_object_.frame_id_;

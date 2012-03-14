@@ -29,6 +29,9 @@ struct Model
   std::string frame_id_;
   std::string geom_;
 
+  Model() : name_("default"),frame_id_("default"), geom_("default"){}
+  Model(std::string const & name, std::string const & frame_id,std::string const & geom) : name_(name),frame_id_(frame_id), geom_(geom){}
+
   friend std::ostream& operator<<(std::ostream &stream,Model const& model);
 };
 //----------------------------------------------------------------------------
@@ -45,6 +48,7 @@ class ModelServer
   boost::mutex data_mutex_;
   tf::TransformBroadcaster tf_brc_;
   std::string model_dir_;
+  std::string ref_frame_id_;
   Model icr_object_;
 
   ros::ServiceServer load_object_srv_;

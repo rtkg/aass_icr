@@ -5,15 +5,10 @@
 //----------------------------------------------------------------------------------------
 IcrServer::IcrServer() : nh_private_("~"), obj_loader_(new ICR::ObjectLoader()), finger_parameters_(new ICR::FParamList())
 {
-  std::string param;
-  std::string prefix;
-  nh_private_.searchParam("icr_prefix", param);
-  nh_private_.param(param, prefix, std::string());
-
-  compute_icr_service_=nh_.advertiseService(prefix + "/icr_server/compute_icr",&IcrServer::computeIcr,this);
-  load_wfront_obj_service_=nh_.advertiseService(prefix + "/icr_server/load_wfront_obj",&IcrServer::loadWfrontObj,this);
-  add_fingers_service_=nh_.advertiseService(prefix + "/icr_server/add_fingers",&IcrServer::addFingers,this);
-  set_finger_parameters_service_=nh_.advertiseService(prefix + "/icr_server/set_finger_parameters",&IcrServer::setFingerParameters,this);
+  compute_icr_service_=nh_.advertiseService("compute_icr",&IcrServer::computeIcr,this);
+  load_wfront_obj_service_=nh_.advertiseService("load_wfront_obj",&IcrServer::loadWfrontObj,this);
+  add_fingers_service_=nh_.advertiseService("add_fingers",&IcrServer::addFingers,this);
+  set_finger_parameters_service_=nh_.advertiseService("set_finger_parameters",&IcrServer::setFingerParameters,this);
 }
 //----------------------------------------------------------------------------------------
 IcrServer::~IcrServer()

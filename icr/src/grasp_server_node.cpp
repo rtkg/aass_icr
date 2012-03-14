@@ -26,11 +26,11 @@ int main(int argc, char **argv)
   GraspServer grasp_server;
   ROS_INFO("Grasp server ready");
   
-  ros::Rate r(spin_frequency); 
+  //ros::Rate r(spin_frequency); 
   while(ros::ok())
     {
     grasp_server.spin();
-    r.sleep();
+    //  r.sleep();
     }
   return 0;
 }

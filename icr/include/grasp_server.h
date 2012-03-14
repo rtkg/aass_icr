@@ -9,15 +9,17 @@
 #define grasp_server_h___
 
 #include "ros/ros.h"
-#include "../msg_gen/cpp/include/icr/ContactPoints.h"
+#include "../msg_gen/cpp/include/icr/StampedContactPoint.h"
 #include <boost/thread/mutex.hpp>
-
+#include <boost/shared_ptr.hpp>
 //#include <tf/transform_broadcaster.h>
-//#include <gazebo_msgs/ContactsState.h>
+#include <tf/transform_listener.h>
+#include <tf/message_filter.h>
 #include "../srv_gen/cpp/include/icr/SetObject.h"
 #include <vector>
 #include "phalange.h"
 #include "model_server.h"
+//#include <geometry_msgs/PoseStamped.h>
 
 class GraspServer
 {
@@ -35,8 +37,14 @@ class GraspServer
   ros::Publisher contact_points_pub_;  
 
   boost::mutex lock_;
-  Model target_obj_;
+  boost::shared_ptr<Model> target_obj_;
   std::vector<Phalange*> phalanges_;
+
+
+  tf::TransformListener tf_list_;
+  tf::MessageFilter<icr::StampedContactPoint>* tf_filter_;
+
+
 
   /////////////////
   //  CALLBACKS  //
