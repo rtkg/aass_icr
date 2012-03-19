@@ -1,0 +1,2 @@
+icr/ContactPoint[] points
+

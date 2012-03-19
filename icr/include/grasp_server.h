@@ -9,18 +9,16 @@
 #define grasp_server_h___
 
 #include "ros/ros.h"
-#include "../msg_gen/cpp/include/icr/StampedContactPoint.h"
 #include <boost/thread/mutex.hpp>
 #include <boost/shared_ptr.hpp>
-//#include <tf/transform_broadcaster.h>
-#include <tf/transform_listener.h>
-#include <tf/message_filter.h>
 #include "../srv_gen/cpp/include/icr/SetObject.h"
 #include <vector>
 #include "phalange.h"
 #include "model_server.h"
-//#include <geometry_msgs/PoseStamped.h>
 
+/**
+ *@brief Contains a list of Phalanges and publishes corresponding icr/ContactPoints messages 
+ */
 class GraspServer
 {
  public:
@@ -28,6 +26,9 @@ class GraspServer
   GraspServer();
   ~GraspServer();
 
+/**
+ *@brief Collects the current contact poses from the Phalanges and publishes icr/ContactPoints messages
+ */
   void spin();
 
  private:
@@ -37,14 +38,15 @@ class GraspServer
   ros::Publisher contact_points_pub_;  
 
   boost::mutex lock_;
+/**
+ *@brief The current target object - needed by the Phalanges to determine whether they are in
+ *conatct or not
+ */
   boost::shared_ptr<Model> target_obj_;
+/**
+ *@brief Vector containing the phalanges of the hand - the order is important
+ */
   std::vector<Phalange*> phalanges_;
-
-
-  tf::TransformListener tf_list_;
-  tf::MessageFilter<icr::StampedContactPoint>* tf_filter_;
-
-
 
   /////////////////
   //  CALLBACKS  //
@@ -52,7 +54,4 @@ class GraspServer
 
   bool setObject(icr::SetObject::Request  &req, icr::SetObject::Response &res);
 };
-
-
-
 #endif

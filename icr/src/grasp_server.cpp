@@ -1,7 +1,8 @@
 #include "../include/grasp_server.h"
 #include <tf/tf.h>
-
-
+#include <geometry_msgs/PointStamped.h>
+#include "../msg_gen/cpp/include/icr/ContactPoint.h"
+#include "../msg_gen/cpp/include/icr/ContactPoints.h"
 
 GraspServer::GraspServer() : nh_private_("~")
 {
@@ -44,12 +45,8 @@ GraspServer::GraspServer() : nh_private_("~")
       exit(0);
     }
 
-
   set_target_obj_srv_ = nh_.advertiseService("set_object",&GraspServer::setObject,this);
-  //  contact_points_pub_=nh_.advertise<icr::ContactPoints>("contact_points",5);
-
-
-  tf_filter_ = new tf::MessageFilter<icr::StampedContactPoint>(tf_list_, "/default", 50);
+  contact_points_pub_=nh_.advertise<icr::ContactPoints>("contact_points",5);  
 }
 //-----------------------------------------------------------------------------------------------
 GraspServer::~GraspServer()
@@ -57,7 +54,6 @@ GraspServer::~GraspServer()
   for (unsigned int i=0; i<phalanges_.size();i++)
     delete phalanges_[i];
 
-  delete tf_filter_;
 }
 //-----------------------------------------------------------------------------------------------
 bool GraspServer::setObject(icr::SetObject::Request  &req, icr::SetObject::Response &res)
@@ -67,11 +63,10 @@ bool GraspServer::setObject(icr::SetObject::Request  &req, icr::SetObject::Respo
 
   target_obj_.reset(new Model(req.name,req.frame_id,req.geom));
 
+  //Transmit the new target object to the Phalanges
   for (unsigned int i=0;i<phalanges_.size();i++)
-    phalanges_[i]->setTargetObjGeom(target_obj_->geom_);
- 
-  tf_filter_->setTargetFrame(target_obj_->frame_id_);
-  
+    phalanges_[i]->setTargetObj(target_obj_);
+   
   lock_.unlock();
   res.success=true;
 
@@ -80,58 +75,17 @@ bool GraspServer::setObject(icr::SetObject::Request  &req, icr::SetObject::Respo
 //-----------------------------------------------------------------------------------------------
 void GraspServer::spin()
 {
-  if (!target_obj_)
-    {
-      ros::spinOnce();
-      return;
-    }
+  icr::ContactPoints pts;
+  icr::ContactPoint p;
 
-  // icr::StampedContactPoints s_cpts;
-  // icr::ContactPoints ct_p;
-  // geometry_msgs::PoseStamped O_T_C;
-  // geometry_msgs::Quaternion q;
-  lock_.lock();
-
-
- icr::StampedContactPoint::ConstPtr scp(new icr::StampedContactPoint);
-
-//   ros::MessageEvent (const ConstMessagePtr &message)
-//  typedef boost::shared_ptr<ConstMessage> ConstMessagePtr;
-// typedef typename boost::add_const<M>::type ConstMessage;
-
-
- ros::MessageEvent<icr::StampedContactPoint> ev(scp);
-
-
+  //Get the current contact points from the Phalanges and publish them
   for(unsigned int i = 0; i < phalanges_.size();i++)
      {
-       //  tf_filter_.add(ev);
-
-
-      //  boost::shared_ptr<geometry_msgs::PoseStamped> P_T_C = phalanges_[i]->getContactPose();
-      // try
-      // 	{
-
-      // 	  q=phalanges_[i]->getContactPose()->pose.orientation;
-      // 	  //          std::cout<<"q orig: "<<q.x<<" "<<q.y<<" "<<q.z<<" "<<q.w<<std::endl;
-      // 	  tf_list_.waitForTransform(target_obj_->frame_id_, P_T_C->header.frame_id,P_T_C->header.stamp, ros::Duration(0.5));
-      // 	  tf_list_.transformPose(target_obj_->frame_id_, *(P_T_C).get(), O_T_C);
-      //     q=O_T_C.pose.orientation;
-      // 	  //	  std::cout<<"q trans: "<<q.x<<" "<<q.y<<" "<<q.z<<" "<<q.w<<std::endl;
-      // 	}
-      // catch (tf::TransformException ex){
-      // 	ROS_ERROR("%s",ex.what());
-      // 	//	lock_.unlock(); 
-      // }
-
-
-      // ct_p.points.push_back(O_T_C.pose.position);
-      // ct_p.touching.push_back(phalanges_[i]->touching());
-    }
-
-  lock_.unlock();
-
-  // contact_points_pub_.publish(ct_p);
+       p.position=phalanges_[i]->getStampedContactPose()->contact_pose.pose.position;
+       p.touching=phalanges_[i]->getStampedContactPose()->contact_pose.touching;
+       pts.points.push_back(p);
+     }
+  contact_points_pub_.publish(pts);
 
   ros::spinOnce();
 }
