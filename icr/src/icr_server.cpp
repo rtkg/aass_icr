@@ -112,15 +112,12 @@ bool IcrServer::setFingerNumber(icr::set_finger_number::Request &req,
   finger_parameters_->clear();
   grasp_update_needed_ = true;
 
-<<<<<<< HEAD
-  ROS_INFO("Hand has now %d fingers",(int)finger_parameters_->size());
-=======
   for(unsigned int i=0; i<req.number; i++) {
     finger_parameters_->push_back(default_finger_params_);
   }
   
   ROS_INFO("Hand has now %d fingers",finger_parameters_->size());
->>>>>>> 344b2ac42be83b52f1d0178d26327b3a43f7cf5c
+
   res.success=true;
   data_mutex_.unlock();
   return res.success;
