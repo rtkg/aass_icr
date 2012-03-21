@@ -63,9 +63,9 @@ class ModelServer
   //  CALLBACKS  //
   /////////////////
 
- /**
-   *  Spawns the given urdf model as "icr_object" in gazebo, if such an object already exists it is
-   *  deleted. Also, the urdf file is pushed onto the parameter server.
+ /** \brief Spawns the given urdf model as "icr_object" in gazebo, if such
+   *  an object already exists it is deleted. Also, the urdf file is
+   *  pushed onto the parameter server.
    */
   bool loadModel(icr::load_model::Request  &req, icr::load_model::Response &res);
   void getModelStates(gazebo_msgs::ModelStates const & states);
