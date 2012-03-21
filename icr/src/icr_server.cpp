@@ -5,6 +5,7 @@
 #include <ros/subscribe_options.h>
 
 #include <sensor_msgs/PointCloud2.h>
+#include "icr/ContactPoints.h"
 // PCL specific includes
 #include <pcl/ros/conversions.h>
 #include <pcl/point_cloud.h>
@@ -60,14 +61,34 @@ void IcrServer::publishCloud() {
   pub_icr_cloud_.publish(output_cloud_);
 }
 
-void IcrServer::fingerTipCallback(const icr::finger_tips& msg) {
-  for (uint i=0; i<msg.points.size(); i++) {
-    ROS_INFO("I heard: [%f, %f, %f]", msg.points[i].x,
-	     msg.points[i].y,msg.points[i].z);
-  }
-}
+void IcrServer::fingerTipCallback(const icr::ContactPoints& msg) {
 
-void findClosestPt() {
+  if(msg.points.size() != finger_parameters_->size()) {
+    ROS_WARN("fingerTipCallback : number of parametrized fingers on icr_server is different than number of fingers in a message. ");
+    return;
+  }
+    
+  uint n_finger = finger_parameters_->size();
+  //  uint* centerpoint_ids_tmp = new uint[n_finger];
+  ICR::VectorXui centerpoint_ids(n_finger);
+
+
+  ROS_INFO("Received fingertips positions:");
+  for (uint i=0; i<n_finger; i++) {
+    ROS_INFO("I've heard: [%f, %f, %f]", msg.points[i].position.x,
+	     msg.points[i].position.y, msg.points[i].position.z);
+    Eigen::Vector3d point_in(msg.points[i].position.x,
+			     msg.points[i].position.y,
+			     msg.points[i].position.z);
+    centerpoint_ids[i] = findClosestStupid(&point_in);
+    ROS_INFO("Found closest vertex on the object: %d.",centerpoint_ids[i]);
+  }
+
+  //calculate ICRs 
+  if (computeIcrCore(centerpoint_ids) ) {
+    publishICRpc();
+  }
+  //  delete [] centerpoint_ids_tmp;
 
 }
 
@@ -82,7 +103,7 @@ bool IcrServer::setFingerNumber(icr::set_finger_number::Request &req,
       ROS_INFO("At least one finger has to be added");
       res.success=false;
       data_mutex_.unlock();
-      return res.success;  
+      return res.success;
     }
   
   ROS_INFO("Setting %d new fingers with default parameters.",req.number);
@@ -171,7 +192,7 @@ bool IcrServer::computeIcr(icr::compute_icr::Request  &req,
 	    res.all_icrs.push_back(icr_->getContactRegion(i)->at(j)->patch_ids_.front());
 	  }
 	}
-	publishICRpc(res);
+	publishICRpc();
       }
     } else {
     all_good = false;
@@ -277,7 +298,7 @@ bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object:
 }
 
 
-void IcrServer::publishICRpc(icr::compute_icr::Response &res) {
+void IcrServer::publishICRpc() {
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>() ); 
   
@@ -380,3 +401,44 @@ bool IcrServer::updateOneFinger(XmlRpc::XmlRpcValue &finger_config,
  
   return all_good;
 }
+
+uint IcrServer::findClosestStupid(Eigen::Vector3d* point_in) const {
+  double min_dist = 100000;
+  uint closest_idx_out = 0;
+  const Eigen::Vector3d* point_on_object;
+  Eigen::Vector3d pt_tmp;
+  unsigned int size = obj_loader_->getObject()->getNumCp();
+
+  for (uint i=0; i<size ; ++i) {
+    point_on_object = obj_loader_->getObject()->getContactPoint(i)->getVertex();
+    pt_tmp = *point_in - *point_on_object;
+    double dist = pt_tmp.norm();
+    if (dist < min_dist) {
+      min_dist = dist;
+      closest_idx_out = i;
+    }
+  }
+  return closest_idx_out;
+
+}
+
+//     for(uint i=0 ; i<icr_->getNumContactRegions() ; i++) { 
+//       for(uint j=0; j < icr_->getContactRegion(i)->size();j++) {
+// 	uint pt_id = icr_->getContactRegion(i)->at(j)->patch_ids_.front();
+// 	const Eigen::Vector3d* pt_e = obj_loader_->getObject()->getContactPoint(pt_id)->getVertex();
+// 	//       	std::cout << (float)pt_e->x() <<" "<< (float)pt_e->x() /1000.0 << std::endl;
+// 	pcl::PointXYZ pt((float)pt_e->x()*scale,
+// 			 (float)pt_e->y()*scale,
+// 			 (float)pt_e->z()*scale);
+// 	cloud->points.push_back(pt);
+//       }
+//     }
+
+
+//   pt_out = this->getPoint(idx);
+//   //  std::cout << "findClosestStupid: Found point:  ("<< idx 
+//   //        << ") [" << pt_out->x() << " "  << pt_out->y() << " " << pt_out->z() 
+//   //        << "] min dist: " << min_dist << std::endl;
+//   return idx;
+// }
+
