@@ -61,6 +61,7 @@ class IcrServer
   ICR::FingerParameters default_finger_params_; 
   ICR::IndependentContactRegions* icr_;
   sensor_msgs::PointCloud2 output_cloud_;
+  
 
   /** \brief Should be set <true> whenever, the \ref
    * ICR::IndependentContactRegions::grasp_ "grasp" needs to be
@@ -77,7 +78,7 @@ class IcrServer
   
   bool computeIcrCore(ICR::VectorXui &centerpoint_ids);
   
-  void publishICRpc();
+  void publishICRpc(ICR::VectorXui* centerpoint_ids = NULL);
   
   void fingerTipCallback(const icr::ContactPoints& msg);
 

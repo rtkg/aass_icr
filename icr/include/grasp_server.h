@@ -36,7 +36,7 @@ class GraspServer
   ros::NodeHandle nh_, nh_private_;
   ros::ServiceServer set_target_obj_srv_;
   ros::Publisher contact_points_pub_;  
-
+  //  ros::Publisher debug_pub_;//REMOVE  
   boost::mutex lock_;
 /**
  *@brief The current target object - needed by the Phalanges to determine whether they are in

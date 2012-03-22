@@ -73,7 +73,6 @@ void IcrServer::fingerTipCallback(const icr::ContactPoints& msg) {
   //  uint* centerpoint_ids_tmp = new uint[n_finger];
   ICR::VectorXui centerpoint_ids(n_finger);
 
-
   ROS_INFO("Received fingertips positions:");
   for (uint i=0; i<n_finger; i++) {
     ROS_INFO("I've heard: [%f, %f, %f]", msg.points[i].position.x,
@@ -86,11 +85,11 @@ void IcrServer::fingerTipCallback(const icr::ContactPoints& msg) {
   }
 
   //calculate ICRs 
-  if (computeIcrCore(centerpoint_ids) ) {
-    publishICRpc();
-  }
-  //  delete [] centerpoint_ids_tmp;
+  computeIcrCore(centerpoint_ids);
+  //    ROS_INFO("fingerTipCallback : try to publish only the center points" );
+  publishICRpc(&centerpoint_ids);
 
+  //  delete [] centerpoint_ids_tmp;
 }
 
 //-----------------------------------------------------------------------
@@ -116,7 +115,7 @@ bool IcrServer::setFingerNumber(icr::set_finger_number::Request &req,
     finger_parameters_->push_back(default_finger_params_);
   }
   
-  ROS_INFO("Hand has now %d fingers",finger_parameters_->size());
+  ROS_INFO("Hand has now %d fingers",(int)finger_parameters_->size());
 
   res.success=true;
   data_mutex_.unlock();
@@ -206,6 +205,10 @@ bool IcrServer::computeIcr(icr::compute_icr::Request  &req,
 
 
 
+
+
+
+
 bool IcrServer::computeIcrCore(ICR::VectorXui &centerpoint_ids)
 {
   bool all_good = true;
@@ -241,6 +244,7 @@ bool IcrServer::computeIcrCore(ICR::VectorXui &centerpoint_ids)
     //Create a prototype grasp and search zones, the parameter alpha
     //is the scale of the largest origin-centered ball contained by
     //the Grasp wrench space of the prototype grasp
+    icr_->clear();
 
     if (grasp_update_needed_) { 
       grasp_update_needed_ = false;
@@ -286,27 +290,34 @@ bool IcrServer::computeIcrCore(ICR::VectorXui &centerpoint_ids)
 
 bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object::Response &res) // call from terminal with e.g. following arguments: '{path: /home/rkg/ros/aass_icr/libicr/icrcpp/models/beer_can.obj, name: beer_can}'
 {
+  grasp_update_needed_ = true;
    data_mutex_.lock();
    obj_loader_->loadObject(req.path,req.name);
-   if((obj_loader_->objectLoaded()) & (obj_loader_->getObject()->getNumCp() > 0))
+   if((obj_loader_->objectLoaded()) & (obj_loader_->getObject()->getNumCp() > 0)) {
+     obj_loader_->getObject()->scaleObject(0.001);
      res.success=true;
-   else
-     {
+   } else {
      ROS_INFO("The loaded target object must be valid. From a terminal type eg. rosservice call /icr_server/load_wfront_obj '{path: /home/username/models/beer_can.obj, name: beer_can}' ");
      res.success=false;
-     }
+   }
   data_mutex_.unlock();
   return res.success;
 }
 
 
-void IcrServer::publishICRpc() {
+void IcrServer::publishICRpc(ICR::VectorXui *centerpoint_ids) {
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>() ); 
   
-  double scale = 0.001;
-  
-  if ( icr_->icrComputed() ) {
+  double scale = 1;
+
+  // ROS_INFO("publishICRpc : the number of icrs : %d, size of the first icr %d ",
+  // 	   (int)icr_->getNumContactRegions(),
+  // 	   (int)icr_->getContactRegion(1)->size() );
+
+  if ( icr_->icrComputed() && obj_loader_->objectLoaded() ) {
+    //if ( false ) {
+    ROS_INFO("Trying to publish ICRs." );
     //clear pc
     cloud->clear();
     //fill in
@@ -321,8 +332,26 @@ void IcrServer::publishICRpc() {
 	cloud->points.push_back(pt);
       }
     }
+  } else if (centerpoint_ids != NULL && centerpoint_ids->size() >= 0 && obj_loader_->objectLoaded()) {
+    ROS_INFO("Trying to publish only the center points" );
+    ROS_INFO("nuber of center points %d", (int)centerpoint_ids->size());
+    cloud->clear();
+    for (uint i=0; i < centerpoint_ids->size(); i++) {
+      ROS_INFO("id of the center point %d", (int)(*centerpoint_ids)[i] );
+      const Eigen::Vector3d* pt_e = 
+	obj_loader_->getObject()->getContactPoint((*centerpoint_ids)[i])->getVertex();
+      pcl::PointXYZ pt((double)pt_e->x(),
+		       (double)pt_e->y(),
+		       (double)pt_e->z());
+      std::cout << pt << std::endl;
+      cloud->points.push_back(pt);
+      ROS_INFO("cloud size : %d",(int)cloud->size());
+    }
+  } else {
+    ROS_WARN("While preparing ICRpc : no ICR computed or object is not loaded.");
   }
-  cloud->header.frame_id = "fixed";
+
+  cloud->header.frame_id = "/Sprayflask_5k";
   cloud->width = cloud->points.size();
   cloud->height = 1;
   pcl::toROSMsg(*cloud,output_cloud_);
@@ -354,7 +383,7 @@ bool IcrServer::loadFingerParameters() {
     }
 
   }
-  ROS_INFO("Hand has now %d fingers",finger_parameters_->size());
+  ROS_INFO("Hand has now %d fingers",(int)finger_parameters_->size());
   return true;
 }
 

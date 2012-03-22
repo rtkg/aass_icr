@@ -33,7 +33,9 @@ void Phalange::transformContactPose(const boost::shared_ptr<const icr::StampedCo
   tf_list_.transformPose(object_model_->frame_id_,P_in,P_out); 
 
   lock_.lock();
-  C_T_O_->header=C_T_L->header;
+  
+  C_T_O_->header.stamp=C_T_L->header.stamp;
+  C_T_O_->header.frame_id=object_model_->frame_id_;
   C_T_O_->contact_pose.pose=P_out.pose;
   C_T_O_->contact_pose.touching=C_T_L->contact_pose.touching;
   lock_.unlock();

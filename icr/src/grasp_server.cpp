@@ -3,6 +3,8 @@
 #include <geometry_msgs/PointStamped.h>
 #include "../msg_gen/cpp/include/icr/ContactPoint.h"
 #include "../msg_gen/cpp/include/icr/ContactPoints.h"
+#include "../msg_gen/cpp/include/icr/StampedContactPose.h" //REMOVE
+#include <geometry_msgs/PoseStamped.h>//REMOVE
 
 GraspServer::GraspServer() : nh_private_("~")
 {
@@ -46,7 +48,8 @@ GraspServer::GraspServer() : nh_private_("~")
     }
 
   set_target_obj_srv_ = nh_.advertiseService("set_object",&GraspServer::setObject,this);
-  contact_points_pub_=nh_.advertise<icr::ContactPoints>("contact_points",5);  
+  contact_points_pub_=nh_.advertise<icr::ContactPoints>("contact_points",5); 
+  // debug_pub_=nh_.advertise<geometry_msgs::PoseStamped>("debug_thumb",5);  
 }
 //-----------------------------------------------------------------------------------------------
 GraspServer::~GraspServer()
@@ -87,6 +90,10 @@ void GraspServer::spin()
      }
   contact_points_pub_.publish(pts);
 
+  //geometry_msgs::PoseStamped dbg;
+  // dbg.header=phalanges_[0]->getStampedContactPose()->header;
+  // dbg.pose=phalanges_[0]->getStampedContactPose()->contact_pose.pose;
+  // debug_pub_.publish(dbg);
   ros::spinOnce();
 }
 //-----------------------------------------------------------------------------------------------
