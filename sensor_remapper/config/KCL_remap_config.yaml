@@ -1,0 +1,23 @@
+sensor_topics:
+     - name: /thdistal/ContactState 
+       type: kcl_msgs/KCL_ContactStateStamped
+       remap_name: thdistal/contact_state
+    
+     - name: /ffdistal/ContactState 
+       type: kcl_msgs/KCL_ContactStateStamped
+       remap_name: ffdistal/contact_state
+
+     - name: /mfdistal/ContactState 
+       type: kcl_msgs/KCL_ContactStateStamped
+       remap_name: mfdistal/contact_state
+
+     - name: /rfdistal/ContactState 
+       type: kcl_msgs/KCL_ContactStateStamped
+       remap_name: rfdistal/contact_state
+
+     - name: /lfdistal/ContactState 
+       type: kcl_msgs/KCL_ContactStateStamped
+       remap_name: lfdistal/contact_state
+
+
+

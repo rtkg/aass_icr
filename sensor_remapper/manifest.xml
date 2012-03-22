@@ -13,6 +13,7 @@
   <depend package="kcl_msgs"/>
   <depend package="gazebo_msgs"/>
   <depend package="icr"/>
+<!--  <depend package="eigen_conversions"/>-->
 </package>
 
 

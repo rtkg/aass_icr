@@ -16,8 +16,8 @@
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "sensor_remapper");
-
   SensorRemapper sensor_remapper;
+
   ROS_INFO("Contact sensor remapper started.");
   ros::spin();
 
