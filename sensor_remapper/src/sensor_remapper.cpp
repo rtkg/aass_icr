@@ -78,7 +78,8 @@ void SensorRemapper::remapKclMsgsKclContactStateStamped(kcl_msgs::KCL_ContactSta
   icr::ContactState state;
   state.header.stamp=msg->header.stamp;
   state.header.frame_id=msg->header.frame_id;
-  if(msg->Fnormal > -1.0e-5) //Normal force magnitude is negative in the KCL_ContactStateStamped messages
+
+  if(msg->Fnormal < 1.0e-5)
     {
       state.info="not_touching";
       c_state_pubs_[topic_id].publish(state);
@@ -105,6 +106,7 @@ void SensorRemapper::remapKclMsgsKclContactStateStamped(kcl_msgs::KCL_ContactSta
   state.wrench.torque.x=torque(0);
   state.wrench.torque.y=torque(1);
   state.wrench.torque.z=torque(2);
+
 
   c_state_pubs_[topic_id].publish(state);
 }

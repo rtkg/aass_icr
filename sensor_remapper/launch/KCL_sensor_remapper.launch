@@ -1,7 +1,4 @@
 <launch>
-          <!-- Launches the KCL_sensors -->
-       <include file="$(find kclcontloc_sim)/kclcontloc_sim.launch" />
-
        <!-- Launches the remapper node -->
         <node pkg="sensor_remapper" name="sensor_remapper" type="sensor_remapper" output="screen" ns="sensor_remapper">
           <rosparam file="$(find sensor_remapper)/config/KCL_remap_config.yaml" command="load"/>
