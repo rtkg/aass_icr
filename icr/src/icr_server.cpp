@@ -65,23 +65,22 @@ void IcrServer::publishCloud() {
 void IcrServer::fingerTipCallback(const icr::ContactPoints& msg) {
 
   if(msg.points.size() != finger_parameters_->size()) {
-    ROS_WARN("fingerTipCallback : number of parametrized fingers on icr_server is different than number of fingers in a message. ");
-    return;
+    //ROS_WARN("fingerTipCallback : number of parametrized fingers on icr_server is different than number of fingers in a message. ");
+    //return;
   }
     
   uint n_finger = finger_parameters_->size();
   //  uint* centerpoint_ids_tmp = new uint[n_finger];
   ICR::VectorXui centerpoint_ids(n_finger);
 
-  ROS_INFO("Received fingertips positions:");
+ // ROS_INFO("Received fingertips positions:");
   for (uint i=0; i<n_finger; i++) {
-    ROS_INFO("I've heard: [%f, %f, %f]", msg.points[i].position.x,
-	     msg.points[i].position.y, msg.points[i].position.z);
+  //  ROS_INFO("I've heard: [%f, %f, %f]", msg.points[i].position.x,  msg.points[i].position.y, msg.points[i].position.z);
     Eigen::Vector3d point_in(msg.points[i].position.x,
 			     msg.points[i].position.y,
 			     msg.points[i].position.z);
     centerpoint_ids[i] = findClosestStupid(&point_in);
-    ROS_INFO("Found closest vertex on the object: %d.",centerpoint_ids[i]);
+  //  ROS_INFO("Found closest vertex on the object: %d.",centerpoint_ids[i]);
   }
 
   //calculate ICRs 

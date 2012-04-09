@@ -1,0 +1,19 @@
+<launch>
+
+  <node pkg="dummy_server" name="dummy_server" type="dummy_server" output="screen" ns="dummy_server">
+    <param name="model_directory" type="string" value="$(find dummy_server)/model/"/>
+  </node>
+
+  <node pkg="tf" type="static_transform_publisher" name="icr_object_pos" args="0 0 0.1  0  0 1.57 fixed Sprayflask_5k 100" /> 
+
+  <node pkg="grasp_affordances" name="grasp_affordances" type="grasp_affordances" output="screen" ns="grasp_affordances">
+    <remap from="get_contact_regions" to="/dummy_server/get_contact_regions"/> 
+    <remap from="get_object" to="/dummy_server/get_object"/> 
+  </node>
+
+</launch>
+
+
+
+
+

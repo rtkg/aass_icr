@@ -1,0 +1,4 @@
+string local_file
+geometry_msgs/Pose initial_pose 
+---
+bool success

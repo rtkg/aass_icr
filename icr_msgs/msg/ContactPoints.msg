@@ -1,0 +1,2 @@
+ContactPoint[] points
+

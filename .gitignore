@@ -38,6 +38,16 @@ sensor_remapper/bin/
 sensor_remapper/src/icr
 sensor_remapper/srv_gen
 sensor_remapper/msg_gen
+dummy_server/build/
+dummy_server/bin/
+dummy_server/src/icr
+dummy_server/srv_gen
+dummy_server/msg_gen
+icr_msgs/srv_gen
+icr_msgs/msg_gen
+icr_msgs/bin
+icr_msgs/include
+icr_msgs/src
 libicr/icrcpp
 libobj/obj-1.0
 libqhull/Qhull-2011.2
