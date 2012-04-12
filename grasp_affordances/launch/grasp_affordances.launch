@@ -9,6 +9,7 @@
   <node pkg="grasp_affordances" name="grasp_affordances" type="grasp_affordances" output="screen" ns="grasp_affordances">
     <remap from="get_contact_regions" to="/dummy_server/get_contact_regions"/> 
     <remap from="get_object" to="/dummy_server/get_object"/> 
+    <param name="dummy_parameter" type="double" value="42.0" />
   </node>
 
 </launch>

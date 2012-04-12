@@ -1,446 +1,466 @@
 #include "../include/icr_server.h"
 #include <sys/time.h>
 #include <time.h>
-#include <ros/ros.h>
-#include <ros/subscribe_options.h>
+// #include <ros/ros.h>
+// #include <ros/subscribe_options.h>
 
 #include <sensor_msgs/PointCloud2.h>
-#include "icr/ContactPoints.h"
-// PCL specific includes
+// #include "icr/ContactPoints.h"
+// // PCL specific includes
 #include <pcl/ros/conversions.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
+#include <pcl_ros/point_cloud.h>
+#include <algorithm>
+#include <Eigen/Core>
 
-
-using std::cout;
-using std::endl;
-
-//-------------------------------------------------------------------------
-IcrServer::IcrServer() : nh_private_("~"), 
-			 obj_loader_(new ICR::ObjectLoader()), 
-			 finger_parameters_(new ICR::FParamList()),
-			 icr_(new ICR::IndependentContactRegions()), 
-			 grasp_update_needed_(true),
-			 alpha_shift_(1.0)
+namespace ICR
 {
-
-  std::string param;
-  std::string prefix;
-  nh_private_.searchParam("icr_prefix", param);
-  nh_private_.param(param, prefix, std::string());
-
-  compute_icr_service_=nh_.advertiseService(prefix + "/icr_server/compute_icr",&IcrServer::computeIcr,this);
-  load_wfront_obj_service_=nh_.advertiseService(prefix + "/icr_server/load_wfront_obj",&IcrServer::loadWfrontObj,this);
-  set_finger_number_service_=nh_.advertiseService(prefix + "/icr_server/set_finger_number",&IcrServer::setFingerNumber,this);
-  set_finger_parameters_service_=nh_.advertiseService(prefix + "/icr_server/set_finger_parameters",&IcrServer::setFingerParameters,this);
-
-  pub_icr_cloud_ = nh_.advertise<sensor_msgs::PointCloud2> (prefix + "/icr_server/icr_cloud", 10);
-
-  // ros::SubscribeOptions test;
-  
-  // test.init("/finger_tips", 100, fingerTipCallback);
-
-  //  ros::Subscriber test1 
-  sub_finger_tips_ = nh_.subscribe(prefix + "/finger_tips", 
-				   100, &IcrServer::fingerTipCallback,this);
-
-  //  sub_finger_tips_ = nh_.subscribe(test); 
-
-  nh_private_.getParam("alpha_shift", alpha_shift_);
-
-  loadFingerParameters();
-}
 //-------------------------------------------------------------------------
-IcrServer::~IcrServer()
+  IcrServer::IcrServer() : nh_private_("~"), obj_set_(false), pt_grasp_initialized_(false), gws_computed_(false),
+                                             sz_computed_(false), icr_computed_(false), computation_mode_("continuous"), 
+			   qs_(0.5),obj_frame_id_("/default"), all_phl_touching_(false), icr_msg_(new icr_msgs::ContactRegions)
 {
-  delete obj_loader_;
-  delete finger_parameters_;
-  delete icr_;
-}
+  std::string searched_param;
 
-void IcrServer::publishCloud() {
-  pub_icr_cloud_.publish(output_cloud_);
-}
+  if(nh_private_.searchParam("computation_mode", searched_param))
+    {
+       nh_private_.getParam(searched_param, computation_mode_);
+       if(!(!strcmp(computation_mode_.c_str(),"continuous") || !strcmp(computation_mode_.c_str(),"step_wise")))
+	 {
+	   ROS_WARN("%s is an invalid computation mode which has to be either 'continuous' or 'step_wise'. Using mode 'continuous' instead. ",computation_mode_.c_str());
+	   computation_mode_="continuous";
+         }
+    }
 
-void IcrServer::fingerTipCallback(const icr::ContactPoints& msg) {
-
-  if(msg.points.size() != finger_parameters_->size()) {
-    //ROS_WARN("fingerTipCallback : number of parametrized fingers on icr_server is different than number of fingers in a message. ");
-    //return;
-  }
+  if (nh_private_.searchParam("phalanges", searched_param))
+    {
+      nh_.getParam(searched_param,phalange_config_);
+      ROS_ASSERT(phalange_config_.getType() == XmlRpc::XmlRpcValue::TypeArray); 
     
-  uint n_finger = finger_parameters_->size();
-  //  uint* centerpoint_ids_tmp = new uint[n_finger];
-  ICR::VectorXui centerpoint_ids(n_finger);
+      for (int32_t i = 0; i < phalange_config_.size(); ++i) 
+	{    
+           ROS_ASSERT(phalange_config_[i]["phl_name"].getType() == XmlRpc::XmlRpcValue::TypeString); 
+	   ROS_ASSERT(phalange_config_[i]["force_magnitude"].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+	   ROS_ASSERT(phalange_config_[i]["fc_disc"].getType() == XmlRpc::XmlRpcValue::TypeInt);
+           ROS_ASSERT(phalange_config_[i]["mu_0"].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+           ROS_ASSERT(phalange_config_[i]["mu_T"].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+           ROS_ASSERT(phalange_config_[i]["contact_type"].getType() == XmlRpc::XmlRpcValue::TypeString); 
+           ROS_ASSERT(phalange_config_[i]["model_type"].getType() == XmlRpc::XmlRpcValue::TypeString); 
+           ROS_ASSERT(phalange_config_[i]["rule_type"].getType() == XmlRpc::XmlRpcValue::TypeString);
+           ROS_ASSERT(phalange_config_[i]["rule_parameter"].getType() == XmlRpc::XmlRpcValue::TypeDouble);   
+           ROS_ASSERT(phalange_config_[i]["filter_patch"].getType() == XmlRpc::XmlRpcValue::TypeBoolean);
+           ROS_ASSERT(phalange_config_[i]["display_color"].getType() == XmlRpc::XmlRpcValue::TypeArray); 
 
- // ROS_INFO("Received fingertips positions:");
-  for (uint i=0; i<n_finger; i++) {
-  //  ROS_INFO("I've heard: [%f, %f, %f]", msg.points[i].position.x,  msg.points[i].position.y, msg.points[i].position.z);
-    Eigen::Vector3d point_in(msg.points[i].position.x,
-			     msg.points[i].position.y,
-			     msg.points[i].position.z);
-    centerpoint_ids[i] = findClosestStupid(&point_in);
-  //  ROS_INFO("Found closest vertex on the object: %d.",centerpoint_ids[i]);
-  }
+           ROS_ASSERT(phalange_config_[i]["display_color"].size()==3); //3 rgb values to specify a color
+	   for (int32_t j = 0; j < phalange_config_[i]["display_color"].size() ;j++) 
+	     ROS_ASSERT(phalange_config_[i]["display_color"][j].getType() == XmlRpc::XmlRpcValue::TypeDouble);
 
-  //calculate ICRs 
-  computeIcrCore(centerpoint_ids);
-  //    ROS_INFO("fingerTipCallback : try to publish only the center points" );
-  publishICRpc(&centerpoint_ids);
-
-  //  delete [] centerpoint_ids_tmp;
-}
-
-//-----------------------------------------------------------------------
-bool IcrServer::setFingerNumber(icr::set_finger_number::Request &req, 
-				icr::set_finger_number::Response &res)
-{
-  data_mutex_.lock();
   
-  if(req.number < 1)
+
+	   active_phalanges_.push_back((std::string)phalange_config_[i]["phl_name"]);//by default, all phalanges are considered in the icr computation
+         }
+    }
+  else
     {
-      ROS_INFO("At least one finger has to be added");
-      res.success=false;
-      data_mutex_.unlock();
-      return res.success;
+      ROS_ERROR("The hand phalange configurations are not specified - cannot start the Icr Server");
+      ROS_BREAK();
+    }
+
+  set_obj_srv_ = nh_.advertiseService("set_object",&IcrServer::setObject,this);
+  set_qs_srv_ = nh_.advertiseService("set_spherical_q",&IcrServer::setSphericalQuality,this);
+  set_active_phl_srv_ = nh_.advertiseService("set_active_phalanges",&IcrServer::setActivePhalanges,this);
+  set_phl_param_srv_ = nh_.advertiseService("set_phalange_parameters",&IcrServer::setPhalangeParameters,this);
+  ct_pts_sub_ = nh_.subscribe("contact_points",1, &IcrServer::contactPointsCallback,this);
+   icr_cloud_pub_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB> >("icr_cloud",5);
+   icr_pub_ = nh_.advertise<icr_msgs::ContactRegions>("contact_regions",5);
+}
+//------------------------------------------------------------------------
+void IcrServer::computeSearchZones()
+{
+  lock_.lock();
+
+  if(!gws_computed_)
+    {
+      ROS_DEBUG("Grasp Wrench Space not computed - cannot compute search zones");
+      lock_.unlock();
+      return;
+    }
+
+  //cannot compute ICR if the prototype grasp is not force closure
+  if(!pt_grasp_->getGWS()->containsOrigin())
+    return;
+
+  sz_.reset(new SearchZones(pt_grasp_));
+  sz_->computeShiftedSearchZones(qs_);
+  sz_computed_=true;
+  lock_.unlock();
+}
+//-------------------------------------------------------------------------
+void IcrServer::computeICR()
+{
+  lock_.lock();
+
+  //need to check if the OWS list and the Patch list contained in the grasp are computed
+  if(!pt_grasp_initialized_)
+    {
+      ROS_DEBUG("Prototype grasp not initialized - cannot compute ICR");
+      lock_.unlock();
+      return;
+    }
+
+  if(!sz_computed_)
+    {
+      ROS_DEBUG("Search zones not computed - cannot compute ICR");
+      lock_.unlock();
+      return;
     }
   
-  ROS_INFO("Setting %d new fingers with default parameters.",req.number);
+  //this could possibly done more efficiently with the setSearchZones and setGrasp methods
+   icr_.reset(new IndependentContactRegions(sz_,pt_grasp_));
+   icr_->computeICR();
 
-  finger_parameters_->clear();
-  grasp_update_needed_ = true;
+   icr_computed_=true;
 
-  for(unsigned int i=0; i<req.number; i++) {
-    finger_parameters_->push_back(default_finger_params_);
-  }
-  
-  ROS_INFO("Hand has now %d fingers",(int)finger_parameters_->size());
-
-  res.success=true;
-  data_mutex_.unlock();
-  return res.success;
+  lock_.unlock();
 }
-
-//----------------------------------------------------------------------
-bool IcrServer::setFingerParameters(icr::set_finger_parameters::Request &req, icr::set_finger_parameters::Response &res)// from terminal call e.g: 
-//rosservice call /icr_server/set_finger_parameters '{parameter_list: [1]}'
+//-------------------------------------------------------------------------
+void IcrServer::publish()
 {
-
-
-  // data_mutex_.lock();
-  // if (req.parameter_list.size() > 9)
-  //   {
-  //     ROS_INFO("Maximal 8 parameters can be configurated for the given finger_id");
-  //     res.success=false;
-  //     data_mutex_.unlock();
-  //     return res.success;
-  //   }
-  // // char f_id=(char)req.parameter_list[0];
-  // //std::cout<<"finger id:  "<< f_id<<std::endl;
-  // std::basic_string<char> bs=req.parameter_list[0];
-  // std::cout<<"bs size: "<<bs.size()<<std::endl;
-  // char bs1=bs[0];
-  // unsigned int bs1i=(unsigned int)bs1;
-
-  // std::cout<<"bs1: "<<bs1<<" bs1i: "<<bs1i<<std::endl;
-  // class std::vector<std::basic_string<char> > rec=req.parameter_list;
-  // for (unsigned int i=0;i<req.parameter_list.size();i++)
-  //   {
-  //     std::cout<<"hello"<<req.parameter_list.size()<<std::endl;
-  //  std::cout<<"rec: "<<req.parameter_list[i]<<std::endl;
-  //   }
-
-  // update_icr_ = true;
-
-  // res.success=true;
-  // data_mutex_.unlock();
-  // return res.success;
-  return true;
-}
-
-bool IcrServer::computeIcr(icr::compute_icr::Request  &req, 
-			   icr::compute_icr::Response &res) {
-  //Create a vector holding the centerpoint id's contained in the request
-  ICR::VectorXui centerpoint_ids(req.centerpoint_ids.size());
-
-  bool all_good = true;
-
-  for(unsigned int i=0; i<req.centerpoint_ids.size();i++) {
-    if (req.used[i]){
-      //centerpoint_ids e.g. [1838, 4526, 4362, 1083, 793] for the cup
-      centerpoint_ids(i)=req.centerpoint_ids[i];  
-    }
-  }
-
-  if (computeIcrCore(centerpoint_ids)) 
+  lock_.lock();
+  if(!icr_computed_)
     {
-      std::cout << "This is output" << *icr_ << std::endl;
-      
-      if(icr_->icrComputed() ) { 
-	// reserve memory in the output vector
-	uint16_t number = 0; // number of elements in all ICRs
-	for(uint i=0 ; i<icr_->getNumContactRegions() ; i++) {
-	  number += icr_->getContactRegion(i)->size();
-	}
-	res.all_icrs.reserve(number);
-	
-	// fill in ICRs into output vector
-	for(uint i=0 ; i<icr_->getNumContactRegions() ; i++) { 
-	  res.stx.push_back( res.all_icrs.size() );
-	  res.len.push_back( icr_->getContactRegion(i)->size() );
-	  for(uint j=0; j < icr_->getContactRegion(i)->size();j++) {
-	    res.all_icrs.push_back(icr_->getContactRegion(i)->at(j)->patch_ids_.front());
+      ROS_DEBUG("ICR not computed - cannot publish");
+      lock_.unlock();
+      return;
+    }
+
+  pcl::PointCloud<pcl::PointXYZRGB> cloud;
+  if(!generateCloudAndMessage(cloud,*icr_msg_))
+    {
+      ROS_ERROR("ICR  message and cloud generation unsuccessful - cannot publish ICR");
+      lock_.unlock();
+      return; 
+    }
+
+  
+  icr_cloud_pub_.publish(cloud);
+  icr_pub_.publish(*icr_msg_);
+  lock_.unlock();
+}
+  //-------------------------------------------------------------------------
+  bool IcrServer::generateCloudAndMessage(pcl::PointCloud<pcl::PointXYZRGB> & cloud,icr_msgs::ContactRegions & icr_msg)
+  {
+    cloud.clear();
+    //need to check the vertices from the ICR grasp's parent obj whichs associated OWS list and
+    //Patch list were used to compute the given ICR
+    TargetObjectPtr parent_obj=icr_->getGrasp()->getParentObj();
+
+    for(uint i=0 ; i<icr_->getNumContactRegions() ; i++) 
+      {
+	int phl_id = getPhalangeId(icr_->getGrasp()->getFinger(i)->getName());
+	if(phl_id == -1)
+	  {
+	    ROS_ERROR("Cannot extract color associated with the phalange - valid phalange specifications are:");
+	    for(int j=0; j<phalange_config_.size();j++)
+	      ROS_INFO("%s",((std::string)phalange_config_[j]["phl_name"]).c_str());
+
+            return false;         
 	  }
-	}
-	publishICRpc();
+
+	Eigen::Vector3d color;
+	for (int32_t j = 0; j < 3 ;j++) 
+	  color(j)=(double)phalange_config_[phl_id]["display_color"][j];
+          
+	for(uint j=0; j < icr_->getContactRegion(i)->size();j++) 
+	  {
+	    uint pt_id = icr_->getContactRegion(i)->at(j)->patch_ids_.front(); //get the patch centerpoint id
+	    const Eigen::Vector3d* v = parent_obj->getContactPoint(pt_id)->getVertex();
+	    pcl::PointXYZRGB pt;
+	    pt.x=v->x(); pt.x=v->y();pt.x=v->z();
+	    pt.r=color(0); pt.g=color(1); pt.b=color(2);
+
+	    cloud.points.push_back(pt);
+	  }
       }
-    } else {
-    all_good = false;
-  }
-
-  res.success = icr_->icrComputed();
-  return all_good;
-}
-
-
-
-
-
-
-
-bool IcrServer::computeIcrCore(ICR::VectorXui &centerpoint_ids)
-{
-  bool all_good = true;
-
-  data_mutex_.lock();
-  if(!obj_loader_->objectLoaded())    {
-    ROS_INFO("A valid target object needs to be loaded prior to the ICR computation");
-    all_good = false;
-  }
-  if(finger_parameters_->size() < 2)    {
-    ROS_INFO("Hand has to comprise at least 2 fingers in order to allow computing ICR");
-    all_good = false;
-  }
-  if(finger_parameters_->size() != (uint) centerpoint_ids.size())    {
-    ROS_INFO("The number of given centerpoint id's has to equal the number of fingers on the hand in order to allow computing ICR");
-    all_good =false;
-  }
   
-  if (all_good) {
-    
-    //  std::stringstream input;
-    //std::copy(req.centerpoint_ids.begin(),req.centerpoint_ids.end(), std::ostream_iterator<unsigned int>(input," ")); 
-    //    ROS_INFO("Computing ICR for object: %s with given centerpoint id's: %s",
-    //	     (obj_loader_->getObject()->getName()).c_str(),input.str().c_str());
+    cloud.header.frame_id = obj_frame_id_;
+    cloud.width=cloud.points.size();
+    cloud.height = 1;
+    cloud.is_dense=true;
 
-    //Modify some of the finger parameters of the prototype-grasp.
-    //The third finger utilizies the Multi-Point contact model, patches only contain the center-point
-    //and border points
-    //(*finger_parameters_)[0].setSoftFingerContact(1,6,0.5,0.5);
-    //(*finger_parameters_)[2].setContactModelType(ICR::Multi_Point);
-    // (*finger_parameters_)[2].setInclusionRuleFilterPatch(true);
-
-    //Create a prototype grasp and search zones, the parameter alpha
-    //is the scale of the largest origin-centered ball contained by
-    //the Grasp wrench space of the prototype grasp
-    icr_->clear();
-
-    if (grasp_update_needed_) { 
-      grasp_update_needed_ = false;
-      ICR::GraspPtr prototype_grasp(new ICR::Grasp());
-      prototype_grasp->init(*finger_parameters_,
-			    obj_loader_->getObject(),
-			    centerpoint_ids);
-      icr_->setGrasp(prototype_grasp);    
-    } else if ( icr_->hasInitializedGrasp() ) {
-      //set new center points/select a subset of centerpoints
-      icr_->getGrasp()->setCenterPointIds(centerpoint_ids);
-    } else {
-      ROS_ERROR("Something went terribly wrong. No grasp update needed and grasp is not initialized. ");
-      exit(0);
-    }
-
-    if( !icr_->getGrasp()->getGWS()->containsOrigin() ) {
-      ROS_INFO("Given prototype grasp is not force closure - Not possible to compute ICR");
-    } else {
-      ICR::SearchZonesPtr search_zones(new ICR::SearchZones(icr_->getGrasp()));
-      search_zones->computeShiftedSearchZones(alpha_shift_);
-      icr_->setSearchZones(search_zones);    
-      icr_->computeICR();
-      std::cout << *icr_;
-    }
+    return true;
   }
-  data_mutex_.unlock();
+//-------------------------------------------------------------------------
+  bool IcrServer::setPhalangeParameters(icr_msgs::SetPhalangeParameters::Request  &req, icr_msgs::SetPhalangeParameters::Response &res)
+  {
+    res.success=false;
+    lock_.lock();
 
-  return all_good;
+    int phl_id =getPhalangeId(req.name);
 
-  // Utility for timing selected parts of the code - uncomment below and put the code to be timed at the marked location
-  // struct timeval start, end;
-  // double c_time;
-  // gettimeofday(&start,0);
-  //
-  //  Put code to be timed here...
-  //  
-  // gettimeofday(&end,0);
-  // c_time = end.tv_sec - start.tv_sec + 0.000001 * (end.tv_usec - start.tv_usec);
-  // std::cout<<"Computation time: "<<c_time<<" s"<<std::endl;
-}
+    if(phl_id == -1)
+      {
+	ROS_ERROR("Cannot set phalange parameters - valid phalange specifications are:");
+	for(int j=0; j<phalange_config_.size();j++)
+	  ROS_INFO("%s",((std::string)phalange_config_[j]["phl_name"]).c_str());
 
+	lock_.unlock();
+	return res.success;
+      }
 
-bool IcrServer::loadWfrontObj(icr::load_object::Request  &req, icr::load_object::Response &res) // call from terminal with e.g. following arguments: '{path: /home/rkg/ros/aass_icr/libicr/icrcpp/models/beer_can.obj, name: beer_can}'
+    if(req.mu_0 <= 0.0)
+    {
+      ROS_ERROR("%f is an invalid friction coefficent. mu_0 has to be bigger than 0",req.mu_0);
+      lock_.unlock();
+      return res.success;
+     }    
+
+  if(req.fc_disc < 3)
+    {
+      ROS_ERROR("%d is an invalid friction cone discretization. fc_disc has to be bigger than 2",req.fc_disc);
+      lock_.unlock();
+      return res.success;
+     }  
+
+  phalange_config_[phl_id]["mu_0"]=req.mu_0;
+  phalange_config_[phl_id]["fc_disc"]=req.fc_disc;
+
+    //changing the active phalange parameters (its not actually checked whether the change was made on an active phalange) potentially requires changes in the associated OWS and Patch list. Thus, reinitialization is necessary
+    if(pt_grasp_initialized_)
+      initPtGrasp();
+
+    lock_.unlock();
+    res.success=true;
+    return true;
+
+  }
+//-------------------------------------------------------------------------
+bool IcrServer::setActivePhalanges(icr_msgs::SetActivePhalanges::Request & req, icr_msgs::SetActivePhalanges::Response &res)
 {
-  grasp_update_needed_ = true;
-   data_mutex_.lock();
-   obj_loader_->loadObject(req.path,req.name);
-   if((obj_loader_->objectLoaded()) & (obj_loader_->getObject()->getNumCp() > 0)) {
-     obj_loader_->getObject()->scaleObject(0.001);
-     res.success=true;
-   } else {
-     ROS_INFO("The loaded target object must be valid. From a terminal type eg. rosservice call /icr_server/load_wfront_obj '{path: /home/username/models/beer_can.obj, name: beer_can}' ");
-     res.success=false;
+  res.success=false;
+
+  if(req.phalanges.size() < 2 )
+    {
+      ROS_ERROR("At least two contacting phalanges are necessary for a force closure grasp");
+      return res.success;
    }
-  data_mutex_.unlock();
+
+  lock_.lock();
+ 
+  for(unsigned int i=0;i<req.phalanges.size();i++)
+    {
+      int phl_id=getPhalangeId(req.phalanges[i]);
+
+      if(phl_id == -1)
+	{
+          ROS_ERROR("Cannot set active phalanges - valid phalange specifications are:");
+           for(int j=0; j<phalange_config_.size();j++)
+             ROS_INFO("%s",((std::string)phalange_config_[j]["phl_name"]).c_str());
+
+	  lock_.unlock();
+	  return res.success;
+        }
+    }
+
+  active_phalanges_.clear();
+  for(unsigned int i=0; i<req.phalanges.size();i++)
+    active_phalanges_.push_back(req.phalanges[i]);
+
+//changing the active phalanges requires changing the number of fingers in a grasp, thus reinitialzation of the prototype grasp is necessary
+ if(pt_grasp_initialized_)
+  initPtGrasp();
+
+  lock_.unlock();
+  res.success=true;
+
   return res.success;
 }
+//-------------------------------------------------------------------------
+bool IcrServer::setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObject::Response &res)
+{
+  res.success=false;
+  lock_.lock();
 
+  pcl::PointCloud<pcl::PointNormal> obj_cloud;
+  pcl::fromROSMsg(req.object.points,obj_cloud);
 
-void IcrServer::publishICRpc(ICR::VectorXui *centerpoint_ids) {
+  ROS_ASSERT(obj_cloud.size()==req.object.neighbors.size()); //make sure there are neighbors for each point in the cloud
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>() ); 
-  
-  double scale = 1;
+   obj_.reset(new TargetObject(req.object.name));
 
-  // ROS_INFO("publishICRpc : the number of icrs : %d, size of the first icr %d ",
-  // 	   (int)icr_->getNumContactRegions(),
-  // 	   (int)icr_->getContactRegion(1)->size() );
-
-  if ( icr_->icrComputed() && obj_loader_->objectLoaded() ) {
-    //if ( false ) {
-    ROS_INFO("Trying to publish ICRs." );
-    //clear pc
-    cloud->clear();
-    //fill in
-    for(uint i=0 ; i<icr_->getNumContactRegions() ; i++) { 
-      for(uint j=0; j < icr_->getContactRegion(i)->size();j++) {
-	uint pt_id = icr_->getContactRegion(i)->at(j)->patch_ids_.front();
-	const Eigen::Vector3d* pt_e = obj_loader_->getObject()->getContactPoint(pt_id)->getVertex();
-	//       	std::cout << (float)pt_e->x() <<" "<< (float)pt_e->x() /1000.0 << std::endl;
-	pcl::PointXYZ pt((float)pt_e->x()*scale,
-			 (float)pt_e->y()*scale,
-			 (float)pt_e->z()*scale);
-	cloud->points.push_back(pt);
+    IndexList neighbors;
+    for(unsigned int i=0;i<obj_cloud.size();i++)  
+      {    
+        neighbors.resize(req.object.neighbors[i].indices.size());
+  	std::copy(req.object.neighbors[i].indices.begin(),req.object.neighbors[i].indices.end(),neighbors.begin());     
+	obj_->addContactPoint(ContactPoint(Eigen::Vector3d(obj_cloud[i].x,obj_cloud[i].y,obj_cloud[i].z),Eigen::Vector3d(obj_cloud[i].normal[0],obj_cloud[i].normal[1],obj_cloud[i].normal[2]),neighbors,i));
       }
-    }
-  } else if (centerpoint_ids != NULL && centerpoint_ids->size() >= 0 && obj_loader_->objectLoaded()) {
-    ROS_INFO("Trying to publish only the center points" );
-    ROS_INFO("nuber of center points %d", (int)centerpoint_ids->size());
-    cloud->clear();
-    for (uint i=0; i < centerpoint_ids->size(); i++) {
-      ROS_INFO("id of the center point %d", (int)(*centerpoint_ids)[i] );
-      const Eigen::Vector3d* pt_e = 
-	obj_loader_->getObject()->getContactPoint((*centerpoint_ids)[i])->getVertex();
-      pcl::PointXYZ pt((double)pt_e->x(),
-		       (double)pt_e->y(),
-		       (double)pt_e->z());
-      std::cout << pt << std::endl;
-      cloud->points.push_back(pt);
-      ROS_INFO("cloud size : %d",(int)cloud->size());
-    }
-  } else {
-    ROS_WARN("While preparing ICRpc : no ICR computed or object is not loaded.");
-  }
 
-  cloud->header.frame_id = "/Sprayflask_5k";
-  cloud->width = cloud->points.size();
-  cloud->height = 1;
-  pcl::toROSMsg(*cloud,output_cloud_);
+  //Loading a new object requires recomputing the OWS list and the Patch list which is done by creating a new grasp an initializing it
+  initPtGrasp();
 
-  publishCloud();
+  obj_frame_id_=obj_cloud.header.frame_id;
+  obj_set_=true;
+
+  lock_.unlock();
+  res.success=true;
+
+  return res.success;
 }
+//------------------------------------------------------------------------
+void IcrServer::initPtGrasp()
+{
+ if(!obj_set_)
+    {
+      ROS_ERROR("No object is loaded - cannot initialize the prototype grasp");
+      return;
+   }
 
-// when a marker is missing the default value for all fingers is set
-bool IcrServer::loadFingerParameters() {
+    FParamList phl_param;
+    getActivePhalangeParameters(phl_param);
 
-  bool all_good = true;
-  XmlRpc::XmlRpcValue finger_config;
+    //The init function also requires centerpoint ids, here only a set of dummy ids is created so
+    //that OWS list and Patch list can be computed. The init function actually also computes the GWS
+    //(should be changed in the icrcpp library). However, since the computation was done with dummy
+    //centerpoint ids, the gws_computed_ flag is set to false anyway. The actual GWS with proper
+    //centerpoints will be computed in the getContactPoints callback
+    VectorXui dummy_cp_ids(phl_param.size()); 
+    dummy_cp_ids.setZero();
+
+    pt_grasp_.reset(new Grasp);
+    pt_grasp_->init(phl_param,obj_,dummy_cp_ids);
+
   
-  nh_private_.getParam("icr_fingers_param", finger_config);
-
-  ROS_INFO("Updating fingers...");
-  assert(finger_config.getType() == XmlRpc::XmlRpcValue::TypeArray);
-  if (all_good) {
-    for (int i = 0; i<finger_config.size(); ++i) {
-      ICR::FingerParameters* finger = 
-	new ICR::FingerParameters(default_finger_params_);
-      updateOneFinger(finger_config[i],finger);
-      cout << "Loaded the parametrization of a finger number [" 
-	   << i << "]." << *finger  << endl;
-      finger_parameters_->push_back(*finger);
-      if (i==0) { //first finger in the config file
-	default_finger_params_ = *finger;
-      }
-    }
-
-  }
-  ROS_INFO("Hand has now %d fingers",(int)finger_parameters_->size());
-  return true;
+  pt_grasp_initialized_=true;
+  gws_computed_=false;
+  
 }
+  //------------------------------------------------------------------------
+  bool IcrServer::setSphericalQuality(icr_msgs::SetSphericalQuality::Request  &req, icr_msgs::SetSphericalQuality::Response &res)
+{
+  res.success=false;
+  lock_.lock();
+  qs_=req.qs;
+  lock_.unlock();
+  res.success=true;
+  return res.success;
+}
+//-------------------------------------------------------------------------
+void IcrServer::contactPointsCallback(icr_msgs::ContactPoints const & c_pts)
+{
+  lock_.lock();
+  if(!obj_set_ || !pt_grasp_initialized_) //do nothing if no object is loaded or the grasp is not initialized
+    return;
 
+  all_phl_touching_=true;
+  
+  Eigen::Vector3d contact_position;
+  bool phl_touching=false; 
+  VectorXui centerpoint_ids(active_phalanges_.size());
 
-bool IcrServer::updateOneFinger(XmlRpc::XmlRpcValue &finger_config, 
-				ICR::FingerParameters *finger_out) {
-  bool all_good = true;
-  assert(finger_config.getType() == XmlRpc::XmlRpcValue::TypeStruct);
+  for (unsigned int i=0; i<centerpoint_ids.size();i++)
+    {
+      if(!cpFromCptsMsg(c_pts,active_phalanges_[i],contact_position,phl_touching))
+	{
+	  ROS_ERROR("Cannot compute the Grasp Wrench Space");
+          all_phl_touching_=false;
+	  return;
+	}
 
-  if (finger_config.hasMember("finger_name") && 
-      finger_config["finger_name"].getType() == XmlRpc::XmlRpcValue::TypeString) {
-    finger_out->setName(finger_config["finger_name"]);
-  }
-  if (finger_config.hasMember("force_magnitude") && 
-      finger_config["force_magnitude"].getType() == XmlRpc::XmlRpcValue::TypeDouble) {
-    finger_out->setForce(finger_config["force_magnitude"]);
-  }
-  if (finger_config.hasMember("fc_disc") && 
-      finger_config["fc_disc"].getType() == XmlRpc::XmlRpcValue::TypeInt) {
-    finger_out->setDiscretization((int)finger_config["fc_disc"]);
-  }
-  if (finger_config.hasMember("mu_0") && 
-      finger_config["mu_0"].getType() == XmlRpc::XmlRpcValue::TypeDouble) {
-    finger_out->setFriction(finger_config["mu_0"]);
-  }
-  if (finger_config.hasMember("mu_T") && 
-      finger_config["mu_T"].getType() == XmlRpc::XmlRpcValue::TypeDouble) {
-    finger_out->setFrictionTorsional(finger_config["mu_T"]);
-  }
-  if (finger_config.hasMember("contact_type") && 
-      finger_config["contact_type"].getType() == XmlRpc::XmlRpcValue::TypeString) {
-    finger_out->setContactType(finger_config["contact_type"]);
-  }
-  if (finger_config.hasMember("model_type") && 
-      finger_config["model_type"].getType() == XmlRpc::XmlRpcValue::TypeString) {
-    finger_out->setContactModelType(finger_config["model_type"]);
-  }
-  if (finger_config.hasMember("filter_patch") && 
-      finger_config["filter_patch"].getType() == XmlRpc::XmlRpcValue::TypeBoolean) {
-    finger_out->setInclusionRuleFilterPatch(finger_config["filter_patch"]);
-  }
-  if (finger_config.hasMember("radius") && 
-      finger_config["radius"].getType() == XmlRpc::XmlRpcValue::TypeDouble) {
-    finger_out->setInclusionRuleParameter((int)finger_config["radius"]);
-  }
+      if(!phl_touching)
+	all_phl_touching_=false;      
  
-  return all_good;
-}
+      centerpoint_ids(i)=findClosestStupid(&contact_position);
+    }
 
-uint IcrServer::findClosestStupid(Eigen::Vector3d* point_in) const {
+  pt_grasp_->setCenterPointIds(centerpoint_ids);
+  gws_computed_=true;
+
+  lock_.unlock();
+}
+//-------------------------------------------------------------------------
+  bool IcrServer::cpFromCptsMsg(icr_msgs::ContactPoints const & c_pts, const std::string & name,Eigen::Vector3d & contact_position,bool & touching)
+{
+
+  for(unsigned int i=0; i<c_pts.points.size();i++)
+      if(!strcmp(name.c_str(),c_pts.points[i].phalange.c_str()))
+	{
+          contact_position(0)=c_pts.points[i].position.x;
+          contact_position(1)=c_pts.points[i].position.y;
+          contact_position(2)=c_pts.points[i].position.z;
+          touching=c_pts.points[i].touching;
+          return true;
+        }
+    
+  ROS_ERROR("Could not find contact point corresponding to phalange %s in ContactPoints message",name.c_str());
+  return false;
+}
+//-------------------------------------------------------------------------
+void IcrServer::getActivePhalangeParameters(FParamList & phl_param)
+{
+  phl_param.resize(active_phalanges_.size());
+ 
+  FingerParameters f_param;
+
+  
+  for(unsigned int i=0; i<active_phalanges_.size();i++)
+    {
+      getFingerParameters(active_phalanges_[i],f_param);
+      phl_param[i]=f_param;
+    }  
+}
+//--------------------------------------------------------------------------
+unsigned int IcrServer::getPhalangeId(std::string const & name)
+{
+   int phl_id= -1;
+
+    for(int i=0; i<phalange_config_.size();i++)
+      if(!strcmp(name.c_str(),((std::string)phalange_config_[i]["phl_name"]).c_str()))    
+	phl_id=i;
+           
+    if(phl_id == -1)
+      {
+	ROS_ERROR("Could not find phalange with name %s",name.c_str());
+	return phl_id;
+      }
+    return phl_id;
+}
+//-------------------------------------------------------------------------
+  void IcrServer::getFingerParameters(std::string const & name,FingerParameters & f_param)
+  {
+    int phl_id=getPhalangeId(name);
+    if(phl_id == -1)
+      return;
+      
+    std::string string_param;
+
+    f_param.setForce((double)phalange_config_[phl_id]["force_magnitude"]);
+    f_param.setFriction((double)phalange_config_[phl_id]["mu_0"]);
+    f_param.setFrictionTorsional((double)phalange_config_[phl_id]["mu_T"]);
+    f_param.setDiscretization((int)phalange_config_[phl_id]["fc_disc"]);
+
+    string_param=(std::string)phalange_config_[phl_id]["phl_name"];
+    f_param.setName(string_param);
+    string_param=(std::string)phalange_config_[phl_id]["contact_type"];
+    f_param.setContactType(string_param);
+    string_param=(std::string)phalange_config_[phl_id]["model_type"];
+    f_param.setContactModelType(string_param);
+    string_param=(std::string)phalange_config_[phl_id]["rule_type"];
+    f_param.setInclusionRuleType(string_param);
+
+    f_param.setInclusionRuleParameter((double)phalange_config_[phl_id]["rule_parameter"]);
+    f_param.setInclusionRuleFilterPatch((bool)phalange_config_[phl_id]["filter_patch"]);
+  }
+//---------------------------------------------------------------------------
+uint IcrServer::findClosestStupid(Eigen::Vector3d* point_in) const 
+{
   double min_dist = 100000;
   uint closest_idx_out = 0;
   const Eigen::Vector3d* point_on_object;
   Eigen::Vector3d pt_tmp;
-  unsigned int size = obj_loader_->getObject()->getNumCp();
+  unsigned int size = obj_->getNumCp();
 
   for (uint i=0; i<size ; ++i) {
-    point_on_object = obj_loader_->getObject()->getContactPoint(i)->getVertex();
+    point_on_object = obj_->getContactPoint(i)->getVertex();
     pt_tmp = *point_in - *point_on_object;
     double dist = pt_tmp.norm();
     if (dist < min_dist) {
@@ -451,24 +471,16 @@ uint IcrServer::findClosestStupid(Eigen::Vector3d* point_in) const {
   return closest_idx_out;
 
 }
+//--------------------------------------------------------------------------------------------
+std::string IcrServer::getComputationMode()
+{
+  std::string computation_mode;
 
-//     for(uint i=0 ; i<icr_->getNumContactRegions() ; i++) { 
-//       for(uint j=0; j < icr_->getContactRegion(i)->size();j++) {
-// 	uint pt_id = icr_->getContactRegion(i)->at(j)->patch_ids_.front();
-// 	const Eigen::Vector3d* pt_e = obj_loader_->getObject()->getContactPoint(pt_id)->getVertex();
-// 	//       	std::cout << (float)pt_e->x() <<" "<< (float)pt_e->x() /1000.0 << std::endl;
-// 	pcl::PointXYZ pt((float)pt_e->x()*scale,
-// 			 (float)pt_e->y()*scale,
-// 			 (float)pt_e->z()*scale);
-// 	cloud->points.push_back(pt);
-//       }
-//     }
+  lock_.lock();
+  computation_mode=computation_mode_;
+  lock_.unlock();
 
-
-//   pt_out = this->getPoint(idx);
-//   //  std::cout << "findClosestStupid: Found point:  ("<< idx 
-//   //        << ") [" << pt_out->x() << " "  << pt_out->y() << " " << pt_out->z() 
-//   //        << "] min dist: " << min_dist << std::endl;
-//   return idx;
-// }
-
+  return computation_mode;
+}
+//--------------------------------------------------------------------------------------------
+}//end namespace

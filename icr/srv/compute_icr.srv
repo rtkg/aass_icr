@@ -1,9 +1,0 @@
-uint16[] centerpoint_ids
-bool[] used	# used[x] true indicates that x-finger was used in a grasp
-       		# and its ICR was calculated
----
-bool success	# true if ICRs has been calculated
-uint16[] stx	# stx[x] marks index of <all_icrs> where x-th ICR starts
-uint16[] len	# number of indices in the icr
-uint16[] all_icrs # data
-

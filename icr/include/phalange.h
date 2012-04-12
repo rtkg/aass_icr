@@ -11,9 +11,9 @@
 #define phalange_h___
 
 #include "ros/ros.h"
-#include "../srv_gen/cpp/include/icr/SetPose.h"
-#include "../msg_gen/cpp/include/icr/StampedContactPose.h"
-#include <gazebo_msgs/ContactsState.h>
+#include "icr_msgs/SetPose.h"
+#include "icr_msgs/StampedContactPose.h"
+#include <icr_msgs/ContactState.h>
 #include <tf/transform_listener.h>
 #include <tf/message_filter.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -22,6 +22,10 @@
 #include "model_server.h"
 #include <boost/thread/mutex.hpp>
 #include <boost/shared_ptr.hpp>
+
+
+namespace ICR
+{
 
 /**
  *@brief This class represents a phalange of the hand. It subscribes to gazebo_msgs/ContactsState
@@ -41,12 +45,13 @@ class Phalange
  public:
 
  
-  Phalange(tf::Transform const & L_T_Cref,Model const & model,std::string const & sensor_topic);
+  Phalange(tf::Transform const & L_T_Cref,std::string const & phl_name,std::string const & phl_frame_id,std::string const & sensor_topic);
   ~Phalange();
 
-  icr::StampedContactPose::ConstPtr getStampedContactPose();
-  boost::shared_ptr<Model> getPhalangeModel();
-  bool setTargetObj(boost::shared_ptr<Model> const & object_model);  
+  icr_msgs::StampedContactPose::ConstPtr getStampedContactPose();
+  void setTargetObjFrameId(std::string const & obj_frame_id);  
+  std::string getPhalangeName(); 
+  std::string getPhalangeFrameId();
  
  private:
 
@@ -76,17 +81,15 @@ class Phalange
 /**
  *@brief Current contact pose expressed in the target object frame. Used by the GraspServer class;
  */
-  boost::shared_ptr<icr::StampedContactPose> C_T_O_;
+  boost::shared_ptr<icr_msgs::StampedContactPose> C_T_O_;
+
+  std::string phl_name_;
+  std::string phl_frame_id_;
+
 /**
- *@brief Represents the model parameters of the phalange - holds name, link frame id and the name of
- *the geometry of the link
+ *@brief Defines the target object's frame_id 
  */
-  boost::shared_ptr<Model> phalange_model_;
-/**
- *@brief Defines the target object - only contacts between the link geometry
- *and this geometry are considered
- */
- boost::shared_ptr<Model> object_model_;
+  std::string obj_frame_id_;
 
  boost::mutex lock_;
  tf::TransformListener tf_list_;
@@ -94,14 +97,10 @@ class Phalange
 /**
  *@brief Message filter to ensure a transformation from the phalange link to the target object is available
  */
- tf::MessageFilter<icr::StampedContactPose>* tf_filter_;
+ tf::MessageFilter<icr_msgs::StampedContactPose>* tf_filter_;
 
   std::string tf_prefix_;
-/**
- *@brief Helper function to compute the average contact position/normal (The
- *gazebo_msgs/ContactsState hold all points in contact)
- */
-  tf::Vector3 averageVectors(std::vector<geometry_msgs::Vector3> const & vecs);
+
 /**
  *@brief Used to generate the contact pose if Phalange::object_model_->geom_ and
  *Phalange::phalange_model_->geom_ are touching. The z-axis of the pose is given as argument. The x
@@ -120,15 +119,16 @@ class Phalange
  *@brief Callback listening to ContactsState msgs (which are always published, even if they are
  *empty). Computes the current contact pose.
  */
-  void listenContacts(const gazebo_msgs::ContactsState::ConstPtr& cts_st);
+  void listenContacts(const icr_msgs::ContactState::ConstPtr& cts_st);
 /**
  *@brief Sets the reference contact pose Phalange::L_T_Cref_ expressed in the phalange link frame
  */
-  bool setPose(icr::SetPose::Request  &req, icr::SetPose::Response &res);
+  bool setPose(icr_msgs::SetPose::Request  &req, icr_msgs::SetPose::Response &res);
 /**
  *@brief Callback registered with the filter; Transforms the current contact pose from the phalange
  *link frame to the object frame
  */
-  void transformContactPose(const boost::shared_ptr<const icr::StampedContactPose>& C_T_L); 
+  void transformContactPose(const boost::shared_ptr<const icr_msgs::StampedContactPose>& C_T_L); 
 };
+}//end namespace
 #endif

@@ -1,7 +1,8 @@
 <launch>
 
-  <node pkg="icr" name="icr" type="icr_server" output="screen" launch-prefix="xterm -e gdb --args">
-      <param name="icr_prefix" type="string" value="" />  
+  <node pkg="icr" name="icr" type="icr_server" output="screen" ns="icr_server">
+      <param name="computation_mode" type="string" value="continuous" />  <!--possible values: "continuous" or "step_wise" -->
+      <rosparam file="$(find icr)/config/phalange_config.yaml" command="load"/>
   </node>
 
 </launch>

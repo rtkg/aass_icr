@@ -10,9 +10,11 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "model_server");
 
-  ModelServer model_server;
+  ICR::ModelServer model_server;
   ROS_INFO("Model server ready");
-  ros::spin();
+ 
+  while(ros::ok())
+    model_server.spin();
 
   return 0;
 }

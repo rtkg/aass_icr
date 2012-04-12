@@ -1,5 +1,3 @@
-string name
-string frame_id
-string geom
+Object object
 ---
 bool success

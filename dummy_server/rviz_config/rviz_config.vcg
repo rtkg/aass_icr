@@ -58,7 +58,7 @@ Robot\:\ ICR\ Object\ Link\ Sprayflask_5kShow\ Trail=0
 Tool\ 2D\ Nav\ GoalTopic=goal
 Tool\ 2D\ Pose\ EstimateTopic=initialpose
 Camera\ Type=rviz::OrbitViewController
-Camera\ Config=0.951 6.19798 0.348767 -0.012574 0.118518 0.00711776
+Camera\ Config=1.026 0.184802 0.348767 -0.012574 0.118518 0.00711776
 Property\ Grid\ State=selection=;expanded=.Global Options,New ICR.Enabled;scrollpos=0,0;splitterpos=536,1089;ispageselected=1
 [Display0]
 Name=Grid

@@ -1,5 +1,0 @@
-string name
-string frame_id
-string geom
----
-bool success

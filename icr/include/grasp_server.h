@@ -11,13 +11,14 @@
 #include "ros/ros.h"
 #include <boost/thread/mutex.hpp>
 #include <boost/shared_ptr.hpp>
-#include "../srv_gen/cpp/include/icr/SetObject.h"
+#include "icr_msgs/SetObject.h"
 #include <vector>
 #include "phalange.h"
-#include "model_server.h"
 
+namespace ICR
+{
 /**
- *@brief Contains a list of Phalanges and publishes corresponding icr/ContactPoints messages 
+ *@brief Contains a list of Phalanges and publishes corresponding icr_msgs/ContactPoints messages 
  */
 class GraspServer
 {
@@ -27,22 +28,18 @@ class GraspServer
   ~GraspServer();
 
 /**
- *@brief Collects the current contact poses from the Phalanges and publishes icr/ContactPoints messages
+ *@brief Collects the current contact poses from the Phalanges and publishes icr_msgs/ContactPoints messages
  */
   void spin();
 
  private:
 
   ros::NodeHandle nh_, nh_private_;
-  ros::ServiceServer set_target_obj_srv_;
+  ros::ServiceServer set_obj_srv_;
   ros::Publisher contact_points_pub_;  
-  //  ros::Publisher debug_pub_;//REMOVE  
+  //ros::Publisher debug_pub_;//REMOVE  
   boost::mutex lock_;
-/**
- *@brief The current target object - needed by the Phalanges to determine whether they are in
- *conatct or not
- */
-  boost::shared_ptr<Model> target_obj_;
+
 /**
  *@brief Vector containing the phalanges of the hand - the order is important
  */
@@ -52,6 +49,7 @@ class GraspServer
   //  CALLBACKS  //
   /////////////////
 
-  bool setObject(icr::SetObject::Request  &req, icr::SetObject::Response &res);
+  bool setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObject::Response &res);
 };
+}//end namespace
 #endif

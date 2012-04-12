@@ -3,20 +3,21 @@
 
 #include "ros/ros.h"
 #include "icr.h"
-#include "../srv_gen/cpp/include/icr/compute_icr.h"
-#include "../srv_gen/cpp/include/icr/load_object.h"
-#include "../srv_gen/cpp/include/icr/set_finger_number.h"
-#include "../srv_gen/cpp/include/icr/set_finger_parameters.h"
-#include "icr/ContactPoints.h"
+#include <string>
+
+/* #include "../srv_gen/cpp/include/icr/compute_icr.h" */
+#include "icr_msgs/SetObject.h"
+#include "icr_msgs/ContactPoints.h"
+#include "icr_msgs/SetSphericalQuality.h"
+#include "icr_msgs/SetPhalangeParameters.h"
+#include "icr_msgs/SetActivePhalanges.h"
+#include <icr_msgs/ContactRegions.h>
 
 #include <boost/thread/mutex.hpp>
-#include <sensor_msgs/PointCloud2.h>
-
-//#include <sensor_msgs/PointCloud.h>
-// PCL specific includes
-//#include <pcl/ros/conversions.h>
-//#include <pcl/point_cloud.h>
-//#include <pcl/point_types.h>
+/* #include <sensor_msgs/PointCloud2.h> */
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <vector>
 
 /** \class IcrServer icr_server.h 
  * \brief Server that computes Independent Contact Regions
@@ -35,108 +36,80 @@
  * ....
  * 
  */
+
+namespace ICR 
+{
 class IcrServer
 {
+ public:
+
+  IcrServer();
+  ~IcrServer(){};
+
+  std::string getComputationMode();
+  void computeSearchZones();
+  void computeICR();
+  void publish();
+
  private:
+
   //
   ros::NodeHandle nh_,nh_private_;
-  //
-  ros::ServiceServer compute_icr_service_;
-  ros::ServiceServer compute_icr_file_server_;
-  ros::ServiceServer load_wfront_obj_service_;
-  ros::ServiceServer set_finger_number_service_;
-  ros::ServiceServer set_finger_parameters_service_;
-  /** \brief Discard previous configuration of fingers. Configures the
-   *   fingers according to input file.
-   */
-  ros::ServiceServer set_fingers_service_;
-  //
-  ros::Publisher pub_icr_cloud_; 
-  //
-  ros::Subscriber sub_finger_tips_;
-  boost::mutex data_mutex_;
-
-  ICR::ObjectLoader* obj_loader_;
-  ICR::FParamList* finger_parameters_;
-  ICR::FingerParameters default_finger_params_; 
-  ICR::IndependentContactRegions* icr_;
-  sensor_msgs::PointCloud2 output_cloud_;
   
-
-  /** \brief Should be set <true> whenever, the \ref
-   * ICR::IndependentContactRegions::grasp_ "grasp" needs to be
-   * updated prior to icr computation because the \ref
-   * finger_parameters_ or the OWS has changed. The update is done in
-   * \ref computeIcrCore and the variable is set to <false>.
-   */
-  bool grasp_update_needed_;
-  double alpha_shift_; ///< fraction of the TWS sphere that determines the search zones
   
-  bool loadFingerParameters();
-  bool updateOneFinger(XmlRpc::XmlRpcValue &finger_config,
-		       ICR::FingerParameters *finger_out);
+  XmlRpc::XmlRpcValue phalange_config_;
+  TargetObjectPtr               obj_;
+  GraspPtr                      pt_grasp_;
+  SearchZonesPtr                sz_;
+  IndependentContactRegionsPtr  icr_;
   
-  bool computeIcrCore(ICR::VectorXui &centerpoint_ids);
   
-  void publishICRpc(ICR::VectorXui* centerpoint_ids = NULL);
+  bool obj_set_;
+  bool pt_grasp_initialized_;
+  bool gws_computed_;
+  bool sz_computed_;
+  bool icr_computed_;
+
+  std::vector<std::string> active_phalanges_;
   
-  void fingerTipCallback(const icr::ContactPoints& msg);
+  std::string computation_mode_;
+  double qs_;
+  std::string obj_frame_id_;
+  bool all_phl_touching_;
 
-  /**\brief Returns the index of a vertex in the mesh (of an object
-     stored in \ref obj_loader_ ) that is closest to point_in given as
-     an argument. */
-  uint findClosestStupid(Eigen::Vector3d* point_in) const;
+  ros::ServiceServer set_obj_srv_;
+   ros::ServiceServer set_qs_srv_;
+ ros::ServiceServer set_active_phl_srv_;
+  ros::ServiceServer set_phl_param_srv_;
+  ros::Subscriber ct_pts_sub_;
+  ros::Publisher icr_cloud_pub_;
+  ros::Publisher icr_pub_;
 
- public:
-  IcrServer();
-  ~IcrServer();
-  void publishCloud();
-  
-  /** \brief ROS service. Computes ICRs. 
-   *
-   * Given that all prerequisites are done (e.g. file loaded, fingers
-   * defined, etc.) This service, given requested indices of the
-   * center-points of a grasp, calculated ICRs and responds with
-   * indices of them.  
-   *
-   * Called from terminal (assuming that the grasp and search zones
-   * are precomputed) \verbatime $ rosservice call
-   * /icr_server/compute_icr [1,2,3,4,5]
-   *
-   * \param req Part of ros srv uint16_t[] containing indices of the
-   * center-points of a grasp 
-   * \return res Structure with bool value indicating the successa and
-   * indices of icr built
-   */
-  bool computeIcr(icr::compute_icr::Request  &req, 
-		  icr::compute_icr::Response &res);
+  boost::mutex lock_;
+  icr_msgs::ContactRegions::Ptr icr_msg_;
 
-  /** \brief ROS service. Loads an *.obj file into IcrServer. return
-   * true if succeded.
-   * 
-   * From command line: 
-   * \verbatime $ rosservice call /icr_server/load_wfront_obj <path_to_a_file> <name> \endverbatime
-   */
-  bool loadWfrontObj(icr::load_object::Request  &req, 
-		     icr::load_object::Response &res);
+  uint findClosestStupid(Eigen::Vector3d* point_in) const; 
+  void getActivePhalangeParameters(FParamList & phl_param);
+  unsigned int getPhalangeId(std::string const & name);
+  void getFingerParameters(std::string const & name,FingerParameters & f_param);
+  bool cpFromCptsMsg(icr_msgs::ContactPoints const & c_pts,const std::string & name,Eigen::Vector3d & contact_position,bool & touching);
+  void initPtGrasp();  
+  bool generateCloudAndMessage(pcl::PointCloud<pcl::PointXYZRGB> & cloud,icr_msgs::ContactRegions & icr_msg);
 
-  /** \brief ros service. Sets the number of fingers in
-   * IcrServer. Deletes previous fingers, thus new parametrization is
-   * needed.
-   * 
-   * From command line: 
-   * \verbatime $ rosservice /icr_server/set_finger_number call <number> \endverbatime
-   */
-  bool setFingerNumber(icr::set_finger_number::Request &req, 
-		       icr::set_finger_number::Response &res); 
+  /////////////////
+  //  CALLBACKS  //
+  /////////////////
+
+  bool setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObject::Response &res);
+ bool setSphericalQuality(icr_msgs::SetSphericalQuality::Request  &req, icr_msgs::SetSphericalQuality::Response &res);
+ bool setActivePhalanges(icr_msgs::SetActivePhalanges::Request  &req, icr_msgs::SetActivePhalanges::Response &res);
+ bool setPhalangeParameters(icr_msgs::SetPhalangeParameters::Request  &req, icr_msgs::SetPhalangeParameters::Response &res);
+  void contactPointsCallback(icr_msgs::ContactPoints const & c_pts); 
 
 
-  /** \brief ros service. Sets parameters of added fingers.  */
-  bool setFingerParameters(icr::set_finger_parameters::Request &req, 
-			   icr::set_finger_parameters::Response &res);
 
 };
-
+}//end namespace
 
 
 

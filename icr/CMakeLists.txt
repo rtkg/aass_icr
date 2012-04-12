@@ -24,9 +24,9 @@ IF(DEFINED debug_mode)
 ENDIF(DEFINED debug_mode)
 
 #uncomment if you have defined messages
-rosbuild_genmsg()
+#rosbuild_genmsg()
 #uncomment if you have defined services
-rosbuild_gensrv()
+#rosbuild_gensrv()
 
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
@@ -36,9 +36,9 @@ rosbuild_gensrv()
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 rosbuild_add_executable(icr_server src/icr_server.cpp src/icr_server_node.cpp)
-rosbuild_add_executable(model_server src/model_server.cpp src/model_server_node.cpp)
+rosbuild_add_executable(model_server src/model_server.cpp src/model_server_node.cpp src/pose_broadcaster.cpp)
 rosbuild_add_executable(grasp_server src/grasp_server.cpp src/grasp_server_node.cpp src/phalange.cpp)
-rosbuild_add_executable(icr_client src/icr_client.cpp)
-rosbuild_add_executable(finger_tip_publisher_node src/finger_tip_publisher_node.cpp)
+#rosbuild_add_executable(icr_client src/icr_client.cpp)
+#rosbuild_add_executable(finger_tip_publisher_node src/finger_tip_publisher_node.cpp)
 #rosbuild_add_executable(icr_pointcloud_test src/icr_pointcloud_test.cpp)
 

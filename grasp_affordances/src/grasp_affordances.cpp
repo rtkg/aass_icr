@@ -7,7 +7,17 @@
 GraspAffordances::GraspAffordances() : nh_private_("~"), obj_(new   pcl::PointCloud<pcl::PointNormal>),
                                        input_icr_(new pcl::PointCloud<pcl::PointXYZRGB>)
 {
+  //An example of how to get stuff from the parameter server
+  std::string param;
+  double parameter;
 
+  nh_private_.searchParam("dummy_parameter", param);
+  nh_private_.getParam(param,parameter);
+
+  ROS_INFO("Loaded dummy parameter with value: %f from the parameter server",parameter);
+
+
+  //initialize Clients, Servers and Publishers
   compute_aff_srv_ = nh_.advertiseService("compute_affordances",&GraspAffordances::computeAffordances,this);
   fetch_obj_srv_ = nh_.advertiseService("fetch_object",&GraspAffordances::fetchObject,this);
   fetch_icr_srv_ = nh_.advertiseService("fetch_contact_regions",&GraspAffordances::fetchICR,this);
@@ -21,22 +31,22 @@ bool GraspAffordances::fetchObject(icr_msgs::GetObject::Request  &req, icr_msgs:
 {
   res.success=false;
   
-  icr_msgs::GetObject obj;
-  obj.request=req;
+  icr_msgs::GetObject srv;
+  srv.request=req;
 
-
-  get_obj_clt_.call(obj); 
-  if(!obj.response.success)
+  //Call the model server
+  get_obj_clt_.call(srv); 
+  if(!srv.response.success)
     {
       ROS_ERROR("Get object client call unsuccessful");
       return res.success;
     }
 
-  res=obj.response;
+  res=srv.response;
 
   lock_.lock();
   obj_->clear();
-  pcl::fromROSMsg(res.object.points,*obj_);
+  pcl::fromROSMsg(res.object.points,*obj_);//Convert the obtained message to PointCloud format
   lock_.unlock();
 
   return res.success;
@@ -57,6 +67,8 @@ bool GraspAffordances::fetchICR(icr_msgs::GetContactRegions::Request  &req, icr_
     }
 
   res=srv.response;
+
+  //concatenate the obtained regions to one point cloud (could probably be done more elegantly)
   pcl::PointCloud<pcl::PointXYZRGB> icr;
   pcl::PointCloud<pcl::PointXYZRGB> reg;
   icr.header.frame_id=res.contact_regions.regions[0].points.header.frame_id;
@@ -76,15 +88,26 @@ bool GraspAffordances::fetchICR(icr_msgs::GetContactRegions::Request  &req, icr_
 //-------------------------------------------------------------------------------
 void GraspAffordances::publish()
 {
+  //Should publish the fitted regions, not the input regions - this is just an example
   if(input_icr_)
     {
       input_icr_->header.stamp=ros::Time(0);
+      input_icr_->header.frame_id="/Sprayflask_5k";
       pts_pub_.publish(*input_icr_);
     }
 }
 //-------------------------------------------------------------------------------
-bool computeAffordances(std_srvs::Empty::Request  &req, std_srvs::Empty::Response &res)
+bool GraspAffordances::computeAffordances(std_srvs::Empty::Request  &req, std_srvs::Empty::Response &res)
 {
+  if(fitInputIcr())
+    return true;
+  else
+    return false;
+}
+//-------------------------------------------------------------------------------
+bool GraspAffordances::fitInputIcr()
+{
+  //Do the fitting stuff here
 
   return true;
 }

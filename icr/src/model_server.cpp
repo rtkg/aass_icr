@@ -1,155 +1,291 @@
 #include "../include/model_server.h"
-#include "../srv_gen/cpp/include/icr/load_model.h"
 #include <gazebo_msgs/SpawnModel.h>
 #include <gazebo_msgs/DeleteModel.h>
-#include <boost/function.hpp>
-//#include <urdf_interface/link.h>
-#include <urdf/model.h>
+#include <gazebo_msgs/GetWorldProperties.h>
 #include <urdf_interface/link.h>
+#include <urdf/model.h>
 #include <std_srvs/Empty.h>
 #include <iostream>
 #include <fstream>
+#include <pcl/ros/conversions.h>
+#include <Eigen/Core>
+#include <algorithm>
+#include <icr_msgs/SetObject.h>
 
-//--------------------------------------------------------------------------
-std::ostream& operator<<(std::ostream &stream,Model const& model)
+namespace ICR
 {
-  stream <<'\n'<<"MODEL: "<<'\n'
-         <<"Name: "<<model.name_<<'\n'
-         <<"Frame id: "<<model.frame_id_<<'\n'
-	 <<"Geometry: "<<model.geom_<<'\n'<<'\n';
-
-  return stream;
-}
-//--------------------------------------------------------------------------
-ModelServer::ModelServer() : nh_private_("~")
+  ModelServer::ModelServer() : nh_private_("~"),pose_brc_(new PoseBroadcaster),obj_(new icr_msgs::Object),scale_(1.0),obj_loaded_(false)
 {
-  ref_frame_id_="/world"; //initialize the reference frame 
-
-  std::string icr_prefix;
+  std::string searched_param;
   std::string gazebo_prefix;
-  std::string param;
 
-  nh_private_.searchParam("gazebo_prefix", param);
-  nh_private_.getParam(param, gazebo_prefix);
+  nh_private_.searchParam("pose_source", searched_param);
+  nh_private_.getParam(searched_param, pose_source_);
 
-  nh_private_.searchParam("model_directory", param);
-  nh_private_.getParam(param, model_dir_);
+  nh_private_.searchParam("model_directory", searched_param);
+  nh_private_.getParam(searched_param, model_dir_);
 
-  if(nh_private_.searchParam("reference_frame_id", param)) //try to read the reference frame from the parameter server
-    nh_private_.getParam(param, ref_frame_id_);
-  else
-    ROS_WARN("No reference frame id found on the parameter server - using %s",ref_frame_id_.c_str());
+  nh_private_.searchParam("gazebo_prefix", searched_param);
+  nh_private_.getParam(searched_param, gazebo_prefix);
 
-  load_object_srv_ = nh_.advertiseService("load_object",&ModelServer::loadModel,this);
+  nh_private_.searchParam("object_scale", searched_param);
+  nh_private_.getParam(searched_param, scale_);
+
+  //read the client topics to be called from the parameter server
+  XmlRpc::XmlRpcValue obj_client_topics;
+  if (nh_private_.searchParam("obj_client_topics", searched_param))
+    {
+      nh_.getParam(searched_param,obj_client_topics);
+      ROS_ASSERT(obj_client_topics.getType() == XmlRpc::XmlRpcValue::TypeArray); 
+    
+       for (int32_t i = 0; i < obj_client_topics.size(); ++i) 
+       	{    
+       	  ROS_ASSERT(obj_client_topics[i].getType() == XmlRpc::XmlRpcValue::TypeString);
+          
+	  //create a new client for each connected server
+	  boost::shared_ptr<ros::ServiceClient> obj_client(new ros::ServiceClient( nh_.serviceClient<icr_msgs::SetObject>((std::string)obj_client_topics[i])));
+	  set_obj_clts_.push_back(obj_client);
+         }
+    }
+
+  load_obj_srv_ = nh_.advertiseService("load_object",&ModelServer::loadObject,this);
   gazebo_spawn_clt_ = nh_.serviceClient<gazebo_msgs::SpawnModel>(gazebo_prefix + "/spawn_urdf_model");
   gazebo_delete_clt_ = nh_.serviceClient<gazebo_msgs::DeleteModel>(gazebo_prefix + "/delete_model");
+  gazebo_get_wp_clt_ = nh_.serviceClient<gazebo_msgs::GetWorldProperties>(gazebo_prefix + "/get_world_properties");
   gazebo_pause_clt_ = nh_.serviceClient<std_srvs::Empty>(gazebo_prefix + "/pause_physics");
   gazebo_unpause_clt_ = nh_.serviceClient<std_srvs::Empty>(gazebo_prefix + "/unpause_physics");
-  gazebo_modstat_sub_ = nh_.subscribe(gazebo_prefix + "/model_states", 10, &ModelServer::getModelStates, this);
-  set_object_clt_ = nh_.serviceClient<icr::SetObject>("set_object");
-}
 
-void ModelServer::getModelStates(gazebo_msgs::ModelStates const & states)
-{
-  bool obj_spawned=false;
-  unsigned int icr_object_id;
-  //see if the icr object is spawned, return if not
-  for(icr_object_id=0; icr_object_id < states.name.size(); icr_object_id++)
-    if(states.name[icr_object_id]==icr_object_.name_)
+
+  //If Gazebo is the intended pose source, wait for Gazebo services to be available 
+  if(!strcmp(pose_source_.c_str(),"gazebo"))
+    {
+      gazebo_delete_clt_.waitForExistence(); 
+      gazebo_get_wp_clt_.waitForExistence();  
+      gazebo_pause_clt_.waitForExistence();  
+      gazebo_unpause_clt_.waitForExistence(); 
+      gazebo_spawn_clt_.waitForExistence();
+    }
+  //Wait for the connected set_object services to be available
+  for(unsigned int i=0;i<set_obj_clts_.size();i++)
+    set_obj_clts_[i]->waitForExistence();
+
+}
+  //--------------------------------------------------------------------------------
+  bool ModelServer::loadObject(icr_msgs::LoadObject::Request  &req, icr_msgs::LoadObject::Response &res)
+  {
+    res.success=false;
+
+    lock_.lock();
+    obj_loaded_=false;
+  
+
+    //delete the previous model in Gazebo if Gazebo is the intended pose source
+    if(!strcmp(pose_source_.c_str(),"gazebo"))  
+      if(!gazeboDeleteModel())
+	{
+	  lock_.unlock();
+	  return res.success;
+	}
+   
+    //load the urdf model, extract obj_name_ and obj_frame_id_ from it and push it on the parameter server
+    std::string serialized_model;
+    if(!loadURDF(model_dir_+"/urdf/"+req.file+".urdf",serialized_model))
       {
-	obj_spawned=true;
-	break;
+	lock_.unlock();
+	return res.success;
       }
 
-  if(!obj_spawned)
-      return;
+    //Spawn the new model in Gazebo if Gazebo is the intended pose source
+    if(!strcmp(pose_source_.c_str(),"gazebo"))  
+      if(!gazeboSpawnModel(serialized_model,req.initial_pose))
+	{
+	  lock_.unlock();
+	  return res.success;
+	}
 
-  //broadcast the icr object's pose to tf
-  static 
-  tf::Transform transform;
-  transform.setOrigin(tf::Vector3(states.pose[icr_object_id].position.x,states.pose[icr_object_id].position.y,states.pose[icr_object_id].position.z));
-  transform.setRotation(tf::Quaternion(states.pose[icr_object_id].orientation.x,states.pose[icr_object_id].orientation.y,states.pose[icr_object_id].orientation.z,states.pose[icr_object_id].orientation.w ));
-  tf_brc_.sendTransform(tf::StampedTransform(transform, ros::Time::now(),ref_frame_id_, icr_object_.frame_id_));
+    //Load the according Wavefront .obj file
+    pcl::PointCloud<pcl::PointNormal> obj_cloud;
+    std::vector<std::vector<unsigned int> >  neighbors;
+    if(!loadWavefrontObj(model_dir_+"/obj/"+req.file+".obj",obj_cloud,neighbors))
+      {
+	lock_.unlock();
+	return res.success;
+      }
+ 
+    //Set the object in the Broadcaster
+    pose_brc_->setObject(obj_cloud,obj_name_);
 
-}
-bool ModelServer::loadModel(icr::load_model::Request  &req, icr::load_model::Response &res)
+    //Update the Object message
+    obj_->name=obj_name_;
+    pcl::toROSMsg(obj_cloud,obj_->points);
+    icr_msgs::Neighbors ngb;
+
+    obj_->neighbors.clear();
+    for(unsigned int i=0;i<neighbors.size();i++)  
+      {    
+	ngb.indices.resize(neighbors[i].size());
+	std::copy(neighbors[i].begin(),neighbors[i].end(),ngb.indices.begin());     
+	obj_->neighbors.push_back(ngb);
+      }
+
+    obj_loaded_=true;
+    res.success=true;
+
+    //Send the object to the connected servers
+    icr_msgs::SetObject set_obj;
+    set_obj.request.object=(*obj_);
+    for(unsigned int i=0; i<set_obj_clts_.size();i++)
+      if(!set_obj_clts_[i]->call(set_obj))
+	{
+	  ROS_ERROR("Could not send object to server number %d",i+1);
+	  res.success=false;
+        }
+
+   
+    lock_.unlock();
+
+    
+    return res.success;
+  }
+//--------------------------------------------------------------------------
+void ModelServer::spin()
 {
-  data_mutex_.lock();
-  res.success=false;
+  //Broadcast the object's pose to tf
+  if(obj_loaded_)
+    pose_brc_->broadcastPose();
 
-  gazebo_msgs::DeleteModel delete_model;
-  delete_model.request.model_name=icr_object_.name_;
+  ros::spinOnce();
+}
+//--------------------------------------------------------------------------
+ bool ModelServer::loadURDF(std::string const & path,std::string & serialized_model)
+  {
 
-  //Delete an icr object in case its already spawned in Gazebo (would be nicer to add a check before
-  //and only do this when an icr_object actually exists)
-  if(!gazebo_delete_clt_.call(delete_model))
-    ROS_WARN("Could not delete previous icr_object model %s",icr_object_.name_.c_str());
-
+    serialized_model.clear();
   std::string line;
-  std::string model;
-  std::ifstream file((model_dir_+req.local_file).c_str());
+  std::ifstream file(path.c_str());
 
   if(!file.is_open()) 
     {
-      ROS_ERROR("Could not open file %s",(model_dir_+req.local_file).c_str());
-     data_mutex_.unlock();
-     return res.success;
+      ROS_ERROR("Could not open file %s",path.c_str());
+      return false;
     }
   while(!file.eof()) // Parse the contents of the given urdf in a string
     {
       std::getline(file,line);
-      model+=line;
+      serialized_model+=line;
     }
   file.close();
 
+
   //Parse the urdf in order to get the robot name and geometry
   urdf::Model urdf_model;
-  if(!urdf_model.initString(model))
+  if(!urdf_model.initString(serialized_model))
     {  
-      ROS_ERROR("Could not parse urdf model %s",(model_dir_+req.local_file).c_str());
-      data_mutex_.unlock();
-      return res.success;
+      ROS_ERROR("Could not parse urdf model %s",path.c_str());
+      return false;
     }
-  icr_object_.name_=urdf_model.getName();
-  //Right now, the URDF parser does not support geometry names. Thus, it is implied that the contact
-  //geometry is named after the root link of the object + "_geom"
-  icr_object_.geom_=urdf_model.getRoot()->name + "_geom";
-  icr_object_.frame_id_="/"+urdf_model.getRoot()->name;//set the frame id to the base link name
 
-  gazebo_msgs::SpawnModel spawn_model;
-  spawn_model.request.model_name=icr_object_.name_; //name the model after its base link
-  spawn_model.request.model_xml=model;
-  spawn_model.request.initial_pose=req.initial_pose;
-  spawn_model.request.reference_frame="world"; //spawn the object in Gazebo's world frame
-
-  std_srvs::Empty empty;
-  gazebo_pause_clt_.call(empty);
-  if (gazebo_spawn_clt_.call(spawn_model))
-    ROS_INFO("Successfully spawned model %s in Gazebo",req.local_file.c_str());
-  else
-    {
-      ROS_ERROR("Failed to spawn model %s in Gazebo - the model pose will not be broadcasted",req.local_file.c_str());
-      data_mutex_.unlock();
-      return res.success;
-    }
-  gazebo_unpause_clt_.call(empty);
+  obj_name_=urdf_model.getName();
+  obj_frame_id_="/"+urdf_model.getRoot()->name;//set the frame id to the base link name
 
   //Push the loaded file on the parameter server 
-  nh_.setParam("icr_object",model);
+  nh_.setParam("icr_object",serialized_model);
 
+  return true;
+  }
+//--------------------------------------------------------------------------
+bool ModelServer::gazeboSpawnModel(std::string const & serialized_model,geometry_msgs::Pose const & initial_pose)
+  {
 
-  //Send the object to the grasp server
-  icr::SetObject obj;
-  obj.request.name=icr_object_.name_;
-  obj.request.frame_id=icr_object_.frame_id_;
-  obj.request.geom=icr_object_.geom_;
-   
-  set_object_clt_.call(obj); 
-  if(!obj.response.success)
-    ROS_WARN("Set object client call unsuccessful.");
+  gazebo_msgs::SpawnModel spawn_model;
+  std_srvs::Empty empty;
+ 
+  spawn_model.request.model_name=obj_name_;
+  spawn_model.request.model_xml=serialized_model;
+  spawn_model.request.initial_pose=initial_pose;
+  spawn_model.request.reference_frame="world"; //spawn the object in Gazebo's world frame
 
-  res.success=true;
-  data_mutex_.unlock();
-  return res.success;
+  gazebo_pause_clt_.call(empty);
+  if (gazebo_spawn_clt_.call(spawn_model))
+    ROS_INFO("Successfully spawned model %s in Gazebo",obj_name_.c_str());
+  else
+    {
+      ROS_ERROR("Failed to spawn model %s in Gazebo",obj_name_.c_str());
+      return false;
+    }
+
+  gazebo_unpause_clt_.call(empty);
+
+  return true;
 }
+//--------------------------------------------------------------------------
+ bool ModelServer::gazeboDeleteModel()
+  {
 
+    gazebo_msgs::GetWorldProperties get_wp;
+    gazebo_msgs::DeleteModel delete_model;
+    std_srvs::Empty empty;
+
+    if(!gazebo_get_wp_clt_.call(get_wp))
+      {
+	ROS_ERROR("Could not get world properties from Gazebo");
+	return false;
+      }
+
+    delete_model.request.model_name=obj_name_;
+
+    //see if a model with the obj_name_ is currently spawned, if yes delete it
+    for(unsigned int i=0; i < get_wp.response.model_names.size();i++ )
+      {
+        if(!strcmp(get_wp.response.model_names[i].c_str(),obj_name_.c_str()))  
+	  {
+	    gazebo_pause_clt_.call(empty);
+	    if(!gazebo_delete_clt_.call(delete_model))
+	      {
+		ROS_WARN("Could not delete model %s",obj_name_.c_str());
+	      }
+	    gazebo_unpause_clt_.call(empty);
+	    break;
+	  }
+      }
+
+
+    return true;
+  }
+//--------------------------------------------------------------------------
+  bool ModelServer::loadWavefrontObj(std::string const & path, pcl::PointCloud<pcl::PointNormal> & cloud, std::vector<std::vector<unsigned int> > & neighbors )
+{
+  ObjectLoader obj_loader; 
+
+  obj_loader.loadObject(path.c_str() ,obj_name_);
+
+  if(!((obj_loader.objectLoaded()) && (obj_loader.getObject()->getNumCp() > 0)))
+    {
+      ROS_INFO("Invalid Wavefront obj file: %s",path.c_str());
+      return false;
+    }
+  obj_loader.getObject()->scaleObject(scale_);
+ 
+  pcl::PointNormal p;
+  neighbors.resize(obj_loader.getObject()->getNumCp());
+  for(unsigned int i=0; i<obj_loader.getObject()->getNumCp();i++)
+    {
+      Eigen::Vector3d const * v=obj_loader.getObject()->getContactPoint(i)->getVertex();
+      Eigen::Vector3d const * vn=obj_loader.getObject()->getContactPoint(i)->getVertexNormal();
+      neighbors[i].resize(obj_loader.getObject()->getContactPoint(i)->getNeighbors()->size());
+      std::copy(obj_loader.getObject()->getContactPoint(i)->getNeighbors()->begin(),obj_loader.getObject()->getContactPoint(i)->getNeighbors()->end(),neighbors[i].begin()); 
+      p.x=v->x(); p.y=v->y(); p.z=v->z(); 
+      p.normal[0]=vn->x();  p.normal[1]=vn->y();  p.normal[2]=vn->z(); 
+      p.curvature=0; //not estimated
+      cloud.push_back(p);
+    }
+  cloud.header.frame_id=obj_frame_id_;
+  cloud.header.stamp=ros::Time::now();
+  cloud.width = cloud.size();
+  cloud.height = 1;
+  cloud.is_dense=true;
+
+  return true;
+}
+//--------------------------------------------------------------------------
+}//end namespace

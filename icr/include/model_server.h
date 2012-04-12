@@ -14,14 +14,81 @@
 #define model_server_h___
 
 #include "ros/ros.h"
-#include "../srv_gen/cpp/include/icr/load_model.h"
-#include "../srv_gen/cpp/include/icr/SetObject.h"
+#include "icr.h"
+#include "pose_broadcaster.h"
+/* #include "../srv_gen/cpp/include/icr/load_model.h" */
+/* #include "../srv_gen/cpp/include/icr/SetObject.h" */
 #include <boost/thread/mutex.hpp>
-#include <gazebo_msgs/ModelStates.h>
-#include <tf/transform_broadcaster.h>
+#include <boost/shared_ptr.hpp>
+#include <icr_msgs/LoadObject.h>
+#include <icr_msgs/Object.h>
+/* #include <tf/transform_broadcaster.h> */
 #include <string>
-#include <iostream>
+#include <vector>
+/* #include <iostream> */
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
 
+namespace ICR
+{
+
+class ModelServer
+{
+ public:
+
+  ModelServer();
+  ~ModelServer(){};
+
+  void spin();
+
+ private:
+
+  ros::NodeHandle nh_, nh_private_;
+  boost::mutex lock_;
+  /* tf::TransformBroadcaster tf_brc_; */
+  
+  std::string model_dir_;
+  std::string obj_name_;
+  std::string obj_frame_id_;
+  std::string pose_source_;
+  boost::shared_ptr<PoseBroadcaster> pose_brc_;
+  icr_msgs::Object::Ptr obj_;
+  double scale_;
+  bool obj_loaded_;
+
+  ros::ServiceServer load_obj_srv_;
+  ros::ServiceClient gazebo_spawn_clt_;
+  ros::ServiceClient gazebo_delete_clt_;
+  ros::ServiceClient gazebo_pause_clt_;
+  ros::ServiceClient gazebo_unpause_clt_;
+  ros::ServiceClient gazebo_get_wp_clt_;
+  std::vector<boost::shared_ptr<ros::ServiceClient> > set_obj_clts_;
+ 
+  /* ros::Subscriber gazebo_modstat_sub_; */
+
+
+bool loadURDF(std::string const & path,std::string & serialized_model);
+bool gazeboSpawnModel(std::string const & serialized_model,geometry_msgs::Pose const & initial_pose);
+bool gazeboDeleteModel();
+ bool loadWavefrontObj(std::string const & path, pcl::PointCloud<pcl::PointNormal> & cloud, std::vector<std::vector<unsigned int> > & neighbors );
+
+ 
+
+  /////////////////
+  //  CALLBACKS  //
+  /////////////////
+
+ /** \brief Spawns the given urdf model as "icr_object" in gazebo, if such
+   *  an object already exists it is deleted. Also, the urdf file is
+   *  pushed onto the parameter server.
+   */
+  bool loadObject(icr_msgs::LoadObject::Request  &req, icr_msgs::LoadObject::Response &res);
+  
+
+};
+}//end namespace
+
+//REMOVE and replace with the icr_msgs::Object
 //----------------------------------------------------------------------------
 struct Model
 {
@@ -32,46 +99,17 @@ struct Model
   Model() : name_("default"),frame_id_("default"), geom_("default"){}
   Model(std::string const & name, std::string const & frame_id,std::string const & geom) : name_(name),frame_id_(frame_id), geom_(geom){}
 
-  friend std::ostream& operator<<(std::ostream &stream,Model const& model);
-};
-//----------------------------------------------------------------------------
-class ModelServer
+  friend std::ostream& operator<<(std::ostream &stream,Model const& model)
 {
- public:
+  stream <<'\n'<<"MODEL: "<<'\n'
+         <<"Name: "<<model.name_<<'\n'
+         <<"Frame id: "<<model.frame_id_<<'\n'
+<<"Geometry: "<<model.geom_<<'\n'<<'\n';
 
-  ModelServer();
-  ~ModelServer(){};
-
- private:
-
-  ros::NodeHandle nh_, nh_private_;
-  boost::mutex data_mutex_;
-  tf::TransformBroadcaster tf_brc_;
-  std::string model_dir_;
-  std::string ref_frame_id_;
-  Model icr_object_;
-
-  ros::ServiceServer load_object_srv_;
-  ros::ServiceClient gazebo_spawn_clt_; 
-  ros::ServiceClient gazebo_delete_clt_; 
-  ros::ServiceClient gazebo_pause_clt_; 
-  ros::ServiceClient gazebo_unpause_clt_; 
-  ros::Subscriber gazebo_modstat_sub_;
-  ros::ServiceClient set_object_clt_;
-
-  /////////////////
-  //  CALLBACKS  //
-  /////////////////
-
- /** \brief Spawns the given urdf model as "icr_object" in gazebo, if such
-   *  an object already exists it is deleted. Also, the urdf file is
-   *  pushed onto the parameter server.
-   */
-  bool loadModel(icr::load_model::Request  &req, icr::load_model::Response &res);
-  void getModelStates(gazebo_msgs::ModelStates const & states);
-
+  return stream;
+}
 };
 
-
+//--------------------------------------------------------------------------
 
 #endif

@@ -23,7 +23,7 @@ int main(int argc, char **argv)
   if(nh_private_.searchParam("spin_frequency",searched_param))
     nh_private_.getParam(searched_param, spin_frequency);
 
-  GraspServer grasp_server;
+  ICR::GraspServer grasp_server;
   ROS_INFO("Grasp server ready");
   
   //ros::Rate r(spin_frequency); 
