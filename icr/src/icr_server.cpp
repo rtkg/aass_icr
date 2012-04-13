@@ -133,62 +133,82 @@ void IcrServer::publish()
       return;
     }
 
-  pcl::PointCloud<pcl::PointXYZRGB> cloud;
-  if(!generateCloudAndMessage(cloud,*icr_msg_))
+  icr_msg_->regions.clear();
+ 
+  pcl::PointCloud<pcl::PointXYZRGB> region_cloud;
+  pcl::PointCloud<pcl::PointXYZRGB> icr_cloud;
+  icr_msgs::ContactRegion region_msg;
+  std::vector<unsigned int> point_ids;
+  for (unsigned int i=0; i < icr_->getNumContactRegions(); i++)
     {
-      ROS_ERROR("ICR  message and cloud generation unsuccessful - cannot publish ICR");
-      lock_.unlock();
-      return; 
-    }
+      if(!cloudFromContactRegion(i,region_cloud,point_ids))//convert region i to a point cloud
+	{
+          ROS_ERROR("Cannot publish ICR cloud");
+          lock_.unlock();
+	  return;
+        }
+
+      icr_cloud+=region_cloud; //concatenate the region clouds to a complete icr_cloud holding all regions
+
+
+      region_msg.phalange=(std::string)phalange_config_[getPhalangeId(icr_->getGrasp()->getFinger(i)->getName())]["phl_name"];
+      pcl::toROSMsg(region_cloud,region_msg.points); 
+      region_msg.indices=point_ids;
+      icr_msg_->regions.push_back(region_msg);
+
+    } 
+
+   icr_msg_->parent_obj=icr_->getGrasp()->getParentObj()->getName();
 
   
-  icr_cloud_pub_.publish(cloud);
-  icr_pub_.publish(*icr_msg_);
+   icr_cloud_pub_.publish(icr_cloud);
+   icr_pub_.publish(*icr_msg_);
   lock_.unlock();
 }
-  //-------------------------------------------------------------------------
-  bool IcrServer::generateCloudAndMessage(pcl::PointCloud<pcl::PointXYZRGB> & cloud,icr_msgs::ContactRegions & icr_msg)
-  {
-    cloud.clear();
-    //need to check the vertices from the ICR grasp's parent obj whichs associated OWS list and
-    //Patch list were used to compute the given ICR
-    TargetObjectPtr parent_obj=icr_->getGrasp()->getParentObj();
+//-------------------------------------------------------------------------
+bool IcrServer::cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pcl::PointXYZRGB> & cloud, std::vector<unsigned int> & point_ids)
+{
+   
+  if(!icr_computed_)
+    {
+      ROS_ERROR("Cannot extract cloud because ICR are not computed");
+      return false;
+    }
+  int phl_id = getPhalangeId(icr_->getGrasp()->getFinger(region_id)->getName());
+  if(phl_id == -1)
+    {
+      ROS_ERROR("Cannot extract color associated with the phalange - cannot convert ContactRegion to pcl::PointCloud");
+      return false;         
+    }
 
-    for(uint i=0 ; i<icr_->getNumContactRegions() ; i++) 
-      {
-	int phl_id = getPhalangeId(icr_->getGrasp()->getFinger(i)->getName());
-	if(phl_id == -1)
-	  {
-	    ROS_ERROR("Cannot extract color associated with the phalange - valid phalange specifications are:");
-	    for(int j=0; j<phalange_config_.size();j++)
-	      ROS_INFO("%s",((std::string)phalange_config_[j]["phl_name"]).c_str());
+  Eigen::Vector3d color;
+  for (int32_t j = 0; j < 3 ;j++) 
+    color(j)=(double)phalange_config_[phl_id]["display_color"][j];
 
-            return false;         
-	  }
 
-	Eigen::Vector3d color;
-	for (int32_t j = 0; j < 3 ;j++) 
-	  color(j)=(double)phalange_config_[phl_id]["display_color"][j];
-          
-	for(uint j=0; j < icr_->getContactRegion(i)->size();j++) 
-	  {
-	    uint pt_id = icr_->getContactRegion(i)->at(j)->patch_ids_.front(); //get the patch centerpoint id
-	    const Eigen::Vector3d* v = parent_obj->getContactPoint(pt_id)->getVertex();
-	    pcl::PointXYZRGB pt;
-	    pt.x=v->x(); pt.x=v->y();pt.x=v->z();
-	    pt.r=color(0); pt.g=color(1); pt.b=color(2);
+ cloud.clear();
+ point_ids.resize(icr_->getContactRegion(region_id)->size());
+  for(uint j=0; j < icr_->getContactRegion(region_id)->size();j++) 
+    {
+      uint pt_id = icr_->getContactRegion(region_id)->at(j)->patch_ids_.front(); //get the patch centerpoint id
+      point_ids[j]=pt_id;
+      //need to check the vertices from the ICR grasp's parent obj whichs associated OWS list and
+      //Patch list were used to compute the given ICR
+      const Eigen::Vector3d* v = icr_->getGrasp()->getParentObj()->getContactPoint(pt_id)->getVertex();
+      pcl::PointXYZRGB pt;
+      pt.x=v->x(); pt.x=v->y();pt.x=v->z();
+      pt.r=color(0); pt.g=color(1); pt.b=color(2);
 
-	    cloud.points.push_back(pt);
-	  }
-      }
-  
-    cloud.header.frame_id = obj_frame_id_;
-    cloud.width=cloud.points.size();
-    cloud.height = 1;
-    cloud.is_dense=true;
+      cloud.points.push_back(pt);
+    }
+      
+  cloud.header.frame_id = obj_frame_id_;
+  cloud.width=cloud.points.size();
+  cloud.height = 1;
+  cloud.is_dense=true;
 
-    return true;
-  }
+  return true;
+}
 //-------------------------------------------------------------------------
   bool IcrServer::setPhalangeParameters(icr_msgs::SetPhalangeParameters::Request  &req, icr_msgs::SetPhalangeParameters::Response &res)
   {
@@ -295,11 +315,11 @@ bool IcrServer::setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObjec
 	obj_->addContactPoint(ContactPoint(Eigen::Vector3d(obj_cloud[i].x,obj_cloud[i].y,obj_cloud[i].z),Eigen::Vector3d(obj_cloud[i].normal[0],obj_cloud[i].normal[1],obj_cloud[i].normal[2]),neighbors,i));
       }
 
+  obj_set_=true;
   //Loading a new object requires recomputing the OWS list and the Patch list which is done by creating a new grasp an initializing it
   initPtGrasp();
 
   obj_frame_id_=obj_cloud.header.frame_id;
-  obj_set_=true;
 
   lock_.unlock();
   res.success=true;

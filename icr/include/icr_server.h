@@ -12,7 +12,7 @@
 #include "icr_msgs/SetPhalangeParameters.h"
 #include "icr_msgs/SetActivePhalanges.h"
 #include <icr_msgs/ContactRegions.h>
-
+#include <icr_msgs/ContactRegion.h>
 #include <boost/thread/mutex.hpp>
 /* #include <sensor_msgs/PointCloud2.h> */
 #include <pcl/point_cloud.h>
@@ -94,7 +94,8 @@ class IcrServer
   void getFingerParameters(std::string const & name,FingerParameters & f_param);
   bool cpFromCptsMsg(icr_msgs::ContactPoints const & c_pts,const std::string & name,Eigen::Vector3d & contact_position,bool & touching);
   void initPtGrasp();  
-  bool generateCloudAndMessage(pcl::PointCloud<pcl::PointXYZRGB> & cloud,icr_msgs::ContactRegions & icr_msg);
+  bool cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pcl::PointXYZRGB> & cloud, std::vector<unsigned int> & point_ids);
+  
 
   /////////////////
   //  CALLBACKS  //

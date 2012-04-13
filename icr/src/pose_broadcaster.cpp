@@ -57,16 +57,23 @@ namespace ICR
     if(!strcmp(pose_source_.c_str(),"gazebo")) //Gazebo is defined as pose source
       {
 	if(!getPoseGazebo(pose))
-	  return;
+	  {
+	    lock_.unlock();
+	    return;
+	  }
       }
     else if(!strcmp(pose_source_.c_str(),"uc3m_objtrack")) //The UC3M objecttracker is defined as pose source
       {
 	if(!getPoseUC3MObjtrack(pose))
-	  return;
+	  {
+	    lock_.unlock();
+	    return;
+	  }
       }
     else
       {
 	ROS_ERROR("%s is an invalid pose source. Implemented are 'gazebo' and 'uc3m_objtrack'. Cannot broadcast object pose ... ",pose_source_.c_str());
+	lock_.unlock();
 	return;
       }
 
