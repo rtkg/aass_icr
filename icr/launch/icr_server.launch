@@ -1,8 +1,10 @@
 <launch>
 
-  <node pkg="icr" name="icr" type="icr_server" output="screen" ns="icr_server">
-      <param name="computation_mode" type="string" value="continuous" />  <!--possible values: "continuous" or "step_wise" -->
+  <node pkg="icr" name="icr_server" type="icr_server" output="screen" ns="icr_server">
+      <param name="computation_mode" type="int" value="0" />  <!--possible values: 0 - continuous or 1 - step_wise -->
+      <param name="icr_database_directory" type="string" value="$(find icr)/icr_database/" /> 
       <rosparam file="$(find icr)/config/phalange_config.yaml" command="load"/>
+      <remap from="contact_points" to="/grasp_server/contact_points"/> 
   </node>
 
 </launch>

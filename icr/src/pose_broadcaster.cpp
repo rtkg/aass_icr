@@ -76,7 +76,7 @@ namespace ICR
 	lock_.unlock();
 	return;
       }
-
+    
     //Broadcast the pose to tf
     tf_brc_.sendTransform(tf::StampedTransform(pose, ros::Time::now(),ref_frame_id_, obj_cloud_.header.frame_id));
 

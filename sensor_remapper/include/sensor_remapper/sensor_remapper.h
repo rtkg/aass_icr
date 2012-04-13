@@ -3,7 +3,7 @@
  * @author Robert Krug
  * @date   Wed Mar 21, 2012
 * 
-* Node remapping various contact sensor messages to a icr/ContactState message
+* Node remapping various contact sensor messages to a icr_msgs/ContactState message
 */
 
 #ifndef   	sensor_remapper_h_
@@ -13,7 +13,7 @@
 #include <kcl_msgs/KCL_ContactStateStamped.h>
 
 /**
-* @brief Node remapping various contact sensor messages to a icr/ContactState message. TODO: read
+* @brief Node remapping various contact sensor messages to a icr_msgs/ContactState message. TODO: read
 *the fully resolved frame ids from the parameter server and bind them to the callbacks 
 */
 

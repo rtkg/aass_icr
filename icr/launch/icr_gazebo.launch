@@ -1,0 +1,11 @@
+<launch>
+
+   <include file="$(find icr)/launch/model_server_gazebo.launch" />
+   <include file="$(find icr)/launch/grasp_server_gazebo.launch" />
+   <include file="$(find icr)/launch/icr_server.launch" />
+</launch>
+
+
+
+
+

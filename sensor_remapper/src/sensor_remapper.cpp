@@ -7,7 +7,7 @@
 #include <ros/ros.h>
 #include <string>
 #include "sensor_remapper/sensor_remapper.h"
-#include "../../icr/msg_gen/cpp/include/icr/ContactState.h"
+#include "icr_msgs/ContactState.h"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
@@ -29,7 +29,7 @@ SensorRemapper::SensorRemapper() : nh_private_("~")
          ROS_ASSERT(sensor_topics[i]["remap_name"].getType() == XmlRpc::XmlRpcValue::TypeString);
 
 	 sensor_subs_.push_back(createSubscriber((std::string)sensor_topics[i]["name"],(std::string)sensor_topics[i]["type"],i));
-	 c_state_pubs_.push_back(nh_.advertise<icr::ContactState> ((std::string)sensor_topics[i]["remap_name"], 1));
+	 c_state_pubs_.push_back(nh_.advertise<icr_msgs::ContactState> ((std::string)sensor_topics[i]["remap_name"], 1));
        }
     }
   else
@@ -56,7 +56,7 @@ ros::Subscriber SensorRemapper::createSubscriber(std::string const & name, std::
 //-------------------------------------------------------------------
 void SensorRemapper::remapGazeboMsgsContactsState(gazebo_msgs::ContactsState::ConstPtr msg, unsigned int topic_id)
 {
-  icr::ContactState state;
+  icr_msgs::ContactState state;
   ROS_WARN("Remapping of gazebo_msgs/ContactsState not implemented yet - publishing zero valued message");
 
   //TODO Put the stuff from the phalange class here
@@ -75,7 +75,7 @@ void SensorRemapper::remapGazeboMsgsContactsState(gazebo_msgs::ContactsState::Co
 //-------------------------------------------------------------------
 void SensorRemapper::remapKclMsgsKclContactStateStamped(kcl_msgs::KCL_ContactStateStamped::ConstPtr msg, unsigned int topic_id)
 {
-  icr::ContactState state;
+  icr_msgs::ContactState state;
   state.header.stamp=msg->header.stamp;
   state.header.frame_id=msg->header.frame_id;
 

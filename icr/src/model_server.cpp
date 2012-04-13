@@ -77,7 +77,6 @@ namespace ICR
 
     lock_.lock();
     obj_loaded_=false;
-  
 
     //delete the previous model in Gazebo if Gazebo is the intended pose source
     if(!strcmp(pose_source_.c_str(),"gazebo"))  
@@ -86,7 +85,7 @@ namespace ICR
 	  lock_.unlock();
 	  return res.success;
 	}
-   
+
     //load the urdf model, extract obj_name_ and obj_frame_id_ from it and push it on the parameter server
     std::string serialized_model;
     if(!loadURDF(model_dir_+"/urdf/"+req.file+".urdf",serialized_model))
@@ -111,7 +110,7 @@ namespace ICR
 	lock_.unlock();
 	return res.success;
       }
- 
+
     //Set the object in the Broadcaster
     pose_brc_->setObject(obj_cloud,obj_name_);
 
@@ -140,8 +139,7 @@ namespace ICR
 	  ROS_ERROR("Could not send object to server number %d",i+1);
 	  res.success=false;
         }
-
-   
+ 
     lock_.unlock();
 
     

@@ -1,33 +1,32 @@
 #include "../include/icr_server.h"
-#include <sys/time.h>
-#include <time.h>
-// #include <ros/ros.h>
-// #include <ros/subscribe_options.h>
-
+//#include <sys/time.h>
+//#include <time.h>
 #include <sensor_msgs/PointCloud2.h>
-// #include "icr/ContactPoints.h"
-// // PCL specific includes
 #include <pcl/ros/conversions.h>
 #include <pcl_ros/point_cloud.h>
 #include <algorithm>
 #include <Eigen/Core>
+#include "rosbag/bag.h"
 
 namespace ICR
 {
 //-------------------------------------------------------------------------
   IcrServer::IcrServer() : nh_private_("~"), obj_set_(false), pt_grasp_initialized_(false), gws_computed_(false),
-                                             sz_computed_(false), icr_computed_(false), computation_mode_("continuous"), 
+                                             sz_computed_(false), icr_computed_(false), computation_mode_(MODE_CONTINUOUS), 
 			   qs_(0.5),obj_frame_id_("/default"), all_phl_touching_(false), icr_msg_(new icr_msgs::ContactRegions)
 {
   std::string searched_param;
 
+  nh_private_.searchParam("icr_database_directory", searched_param);
+  nh_private_.getParam(searched_param, icr_database_dir_);
+
   if(nh_private_.searchParam("computation_mode", searched_param))
     {
        nh_private_.getParam(searched_param, computation_mode_);
-       if(!(!strcmp(computation_mode_.c_str(),"continuous") || !strcmp(computation_mode_.c_str(),"step_wise")))
+       if(!(computation_mode_== MODE_CONTINUOUS  || computation_mode_ == MODE_STEP_WISE))
 	 {
-	   ROS_WARN("%s is an invalid computation mode which has to be either 'continuous' or 'step_wise'. Using mode 'continuous' instead. ",computation_mode_.c_str());
-	   computation_mode_="continuous";
+	   ROS_WARN("%d is an invalid computation mode which has to be either  0 (MODE_CONTINUOUS) or 1 (MODE_STEP_WISE). Using MODE_CONTINUOUS ... ",computation_mode_);
+	   computation_mode_=MODE_CONTINUOUS;
          }
     }
 
@@ -65,18 +64,24 @@ namespace ICR
       ROS_BREAK();
     }
 
+  compute_sz_srv_ = nh_.advertiseService("compute_search_zones",&IcrServer::triggerSearchZonesCmp,this); 
+  compute_icr_srv_ = nh_.advertiseService("compute_icr",&IcrServer::triggerIcrCmp,this); 
+  toggle_mode_srv_ = nh_.advertiseService("toggle_mode",&IcrServer::toggleMode,this); 
+  save_icr_srv_ = nh_.advertiseService("save_icr",&IcrServer::saveIcr,this); 
   set_obj_srv_ = nh_.advertiseService("set_object",&IcrServer::setObject,this);
   set_qs_srv_ = nh_.advertiseService("set_spherical_q",&IcrServer::setSphericalQuality,this);
   set_active_phl_srv_ = nh_.advertiseService("set_active_phalanges",&IcrServer::setActivePhalanges,this);
   set_phl_param_srv_ = nh_.advertiseService("set_phalange_parameters",&IcrServer::setPhalangeParameters,this);
   ct_pts_sub_ = nh_.subscribe("contact_points",1, &IcrServer::contactPointsCallback,this);
-   icr_cloud_pub_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB> >("icr_cloud",5);
-   icr_pub_ = nh_.advertise<icr_msgs::ContactRegions>("contact_regions",5);
+  icr_cloud_pub_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB> >("icr_cloud",5);
+  icr_pub_ = nh_.advertise<icr_msgs::ContactRegions>("contact_regions",5);
 }
 //------------------------------------------------------------------------
 void IcrServer::computeSearchZones()
 {
   lock_.lock();
+
+  sz_computed_=false;
 
   if(!gws_computed_)
     {
@@ -87,7 +92,11 @@ void IcrServer::computeSearchZones()
 
   //cannot compute ICR if the prototype grasp is not force closure
   if(!pt_grasp_->getGWS()->containsOrigin())
-    return;
+    {
+      ROS_DEBUG("Trying to compute search zones, but the GWS is not force closure");
+      lock_.unlock();
+      return;
+    }
 
   sz_.reset(new SearchZones(pt_grasp_));
   sz_->computeShiftedSearchZones(qs_);
@@ -95,9 +104,11 @@ void IcrServer::computeSearchZones()
   lock_.unlock();
 }
 //-------------------------------------------------------------------------
-void IcrServer::computeICR()
+void IcrServer::computeIcr()
 {
   lock_.lock();
+
+  icr_computed_=false;
 
   //need to check if the OWS list and the Patch list contained in the grasp are computed
   if(!pt_grasp_initialized_)
@@ -139,6 +150,8 @@ void IcrServer::publish()
   pcl::PointCloud<pcl::PointXYZRGB> icr_cloud;
   icr_msgs::ContactRegion region_msg;
   std::vector<unsigned int> point_ids;
+
+  icr_cloud.header.frame_id=obj_frame_id_;
   for (unsigned int i=0; i < icr_->getNumContactRegions(); i++)
     {
       if(!cloudFromContactRegion(i,region_cloud,point_ids))//convert region i to a point cloud
@@ -160,7 +173,6 @@ void IcrServer::publish()
 
    icr_msg_->parent_obj=icr_->getGrasp()->getParentObj()->getName();
 
-  
    icr_cloud_pub_.publish(icr_cloud);
    icr_pub_.publish(*icr_msg_);
   lock_.unlock();
@@ -196,7 +208,7 @@ bool IcrServer::cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pc
       //Patch list were used to compute the given ICR
       const Eigen::Vector3d* v = icr_->getGrasp()->getParentObj()->getContactPoint(pt_id)->getVertex();
       pcl::PointXYZRGB pt;
-      pt.x=v->x(); pt.x=v->y();pt.x=v->z();
+      pt.x=v->x(); pt.y=v->y();pt.z=v->z();
       pt.r=color(0); pt.g=color(1); pt.b=color(2);
 
       cloud.points.push_back(pt);
@@ -316,6 +328,7 @@ bool IcrServer::setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObjec
       }
 
   obj_set_=true;
+
   //Loading a new object requires recomputing the OWS list and the Patch list which is done by creating a new grasp an initializing it
   initPtGrasp();
 
@@ -358,47 +371,74 @@ void IcrServer::initPtGrasp()
   bool IcrServer::setSphericalQuality(icr_msgs::SetSphericalQuality::Request  &req, icr_msgs::SetSphericalQuality::Response &res)
 {
   res.success=false;
+  if(!(req.qs > 0.0) || !(req.qs < 1.0))
+    {
+      ROS_ERROR("Qs has to be larger than zero and smaller than one - cannot change Qs");
+      return res.success;
+    }
+
   lock_.lock();
+  
+  //should i set icr_computed_ & sz_computed_ to false here?
+
   qs_=req.qs;
   lock_.unlock();
   res.success=true;
   return res.success;
 }
-//-------------------------------------------------------------------------
-void IcrServer::contactPointsCallback(icr_msgs::ContactPoints const & c_pts)
-{
-  lock_.lock();
-  if(!obj_set_ || !pt_grasp_initialized_) //do nothing if no object is loaded or the grasp is not initialized
-    return;
+  //-------------------------------------------------------------------------
+  void IcrServer::contactPointsCallback(icr_msgs::ContactPoints const & c_pts)
+  {
+    lock_.lock();
+    gws_computed_=false;
 
-  all_phl_touching_=true;
+    if(!obj_set_ || !pt_grasp_initialized_) //do nothing if no object is loaded or the grasp is not initialized
+      {
+	lock_.unlock();
+	return;
+      }
+
+    all_phl_touching_=true;
   
-  Eigen::Vector3d contact_position;
-  bool phl_touching=false; 
-  VectorXui centerpoint_ids(active_phalanges_.size());
+    // struct timeval start, end;
+    // double c_time=0;
+    Eigen::Vector3d contact_position;
+    bool phl_touching=false; 
+    VectorXui centerpoint_ids(active_phalanges_.size());
+    for (unsigned int i=0; i<centerpoint_ids.size();i++)
+      {
+	if(!cpFromCptsMsg(c_pts,active_phalanges_[i],contact_position,phl_touching))
+	  {
+	    ROS_ERROR("Cannot compute the Grasp Wrench Space");
+	    all_phl_touching_=false;
+	    lock_.unlock();
+	    return;
+	  }
 
-  for (unsigned int i=0; i<centerpoint_ids.size();i++)
-    {
-      if(!cpFromCptsMsg(c_pts,active_phalanges_[i],contact_position,phl_touching))
-	{
-	  ROS_ERROR("Cannot compute the Grasp Wrench Space");
-          all_phl_touching_=false;
-	  return;
-	}
+	if(!phl_touching)
+	  all_phl_touching_=false;   
+   
+	//gettimeofday(&start,0);
+	centerpoint_ids(i)=findObjectPointId(&contact_position);
+	// gettimeofday(&end,0);
+	// c_time += end.tv_sec - start.tv_sec + 0.000001 * (end.tv_usec - start.tv_usec);
+      }
+    //std::cout<<"Computation time: "<<c_time<<" s"<<std::endl;  
 
-      if(!phl_touching)
-	all_phl_touching_=false;      
- 
-      centerpoint_ids(i)=findClosestStupid(&contact_position);
-    }
+    pt_grasp_->setCenterPointIds(centerpoint_ids);
+    gws_computed_=true;
 
-  pt_grasp_->setCenterPointIds(centerpoint_ids);
-  gws_computed_=true;
+    //EXPERIMENTAL!!!!!!!!!!!!!!!!!!!! just check if its feasible to stop computatin once all fingers are in touch (e.g. for saving icr)
+    if(all_phl_touching_ && (computation_mode_ == MODE_CONTINUOUS))
+      {
+      computation_mode_=MODE_STEP_WISE;   
+      ROS_INFO("All active phalanges are touching - leaving continuous mode and entering step wise mode...");
+      }
 
-  lock_.unlock();
-}
+    lock_.unlock();
+  }
 //-------------------------------------------------------------------------
-  bool IcrServer::cpFromCptsMsg(icr_msgs::ContactPoints const & c_pts, const std::string & name,Eigen::Vector3d & contact_position,bool & touching)
+  bool IcrServer::cpFromCptsMsg(icr_msgs::ContactPoints const & c_pts, const std::string & name,Eigen::Vector3d & contact_position,bool & touching)const
 {
 
   for(unsigned int i=0; i<c_pts.points.size();i++)
@@ -471,9 +511,9 @@ unsigned int IcrServer::getPhalangeId(std::string const & name)
     f_param.setInclusionRuleFilterPatch((bool)phalange_config_[phl_id]["filter_patch"]);
   }
 //---------------------------------------------------------------------------
-uint IcrServer::findClosestStupid(Eigen::Vector3d* point_in) const 
+uint IcrServer::findObjectPointId(Eigen::Vector3d* point_in) const 
 {
-  double min_dist = 100000;
+  double min_dist = 1000000;
   uint closest_idx_out = 0;
   const Eigen::Vector3d* point_on_object;
   Eigen::Vector3d pt_tmp;
@@ -492,9 +532,9 @@ uint IcrServer::findClosestStupid(Eigen::Vector3d* point_in) const
 
 }
 //--------------------------------------------------------------------------------------------
-std::string IcrServer::getComputationMode()
+int IcrServer::getComputationMode()
 {
-  std::string computation_mode;
+  int computation_mode;
 
   lock_.lock();
   computation_mode=computation_mode_;
@@ -503,4 +543,136 @@ std::string IcrServer::getComputationMode()
   return computation_mode;
 }
 //--------------------------------------------------------------------------------------------
+bool IcrServer::saveIcr(icr_msgs::SaveIcr::Request &req, icr_msgs::SaveIcr::Response &res)
+{
+  res.success=false;
+
+  if(req.file.empty())
+    {
+      ROS_ERROR("Given file name is invalid - cannot save ICR");
+      return res.success;
+    }
+
+   lock_.lock();
+    if(!icr_computed_)
+    {
+      ROS_ERROR("No ICR computed - cannot save");
+      lock_.unlock();
+      return res.success;
+    }
+
+  rosbag::Bag bag(icr_database_dir_+ req.file + ".bag", rosbag::bagmode::Write);
+  bag.write("contact_regions", ros::Time::now(), *icr_msg_);
+
+  lock_.unlock();
+  bag.close();
+  res.success=true;
+
+  ROS_INFO("saved ICR to: %s",(icr_database_dir_+ req.file + ".bag").c_str());
+  return res.success;
+}
+//--------------------------------------------------------------------------------------------
+  bool IcrServer::toggleMode(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+  {
+    bool success=true;
+    lock_.lock();
+  
+    switch (computation_mode_) 
+      {
+      case MODE_CONTINUOUS : 
+	ROS_INFO("Leaving continuous mode, entering step wise mode...");
+	computation_mode_=MODE_STEP_WISE;
+	break;
+
+      case MODE_STEP_WISE : 
+	ROS_INFO("Leaving step wise mode, entering continuous mode...");
+	computation_mode_=MODE_CONTINUOUS;
+	break;
+
+      default : 
+        success = false;
+	ROS_ERROR("%d is an invalid computation mode - cannot switch mode",computation_mode_);
+      }
+
+    lock_.unlock();
+    return success;
+  }
+//--------------------------------------------------------------------------------------------
+bool IcrServer::triggerIcrCmp(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+{
+  lock_.lock();
+
+if(computation_mode_==MODE_CONTINUOUS)
+    {
+      ROS_ERROR("The ICR server runs in continuous mode and must be switched to step wise mode to trigger manual Icr computation");
+      lock_.unlock();
+      return false;
+    }
+
+  icr_computed_=false;
+
+  //need to check if the OWS list and the Patch list contained in the grasp are computed
+  if(!pt_grasp_initialized_)
+    {
+      ROS_ERROR("Prototype grasp not initialized - cannot compute ICR");
+      lock_.unlock();
+      return false;
+    }
+
+  if(!sz_computed_)
+    {
+      ROS_ERROR("Search zones not computed - cannot compute ICR");
+      lock_.unlock();
+      return false;
+    }
+  
+  //this could possibly done more efficiently with the setSearchZones and setGrasp methods
+   icr_.reset(new IndependentContactRegions(sz_,pt_grasp_));
+   icr_->computeICR();
+
+   icr_computed_=true;
+
+  lock_.unlock();
+  
+  ROS_INFO("Computed contact regions");
+  return true;
+}
+//--------------------------------------------------------------------------------------------
+bool IcrServer::triggerSearchZonesCmp(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+{
+  lock_.lock();
+
+  if(computation_mode_==MODE_CONTINUOUS)
+    {
+      ROS_ERROR("The ICR server runs in continuous mode and must be switched to step wise mode to trigger manual search zone computation");
+      lock_.unlock();
+      return false;
+    }
+
+  sz_computed_=false;
+
+  if(!gws_computed_)
+    {
+      ROS_ERROR("Grasp Wrench Space not computed - cannot compute search zones");
+      lock_.unlock();
+      return false;
+    }
+
+  //cannot compute ICR if the prototype grasp is not force closure
+  if(!pt_grasp_->getGWS()->containsOrigin())
+    {
+      ROS_ERROR("Trying to compute search zones, but the GWS is not force closure");
+      lock_.unlock();
+      return false;
+    }
+
+  sz_.reset(new SearchZones(pt_grasp_));
+  sz_->computeShiftedSearchZones(qs_);
+  sz_computed_=true;
+  lock_.unlock();
+  ROS_INFO("Computed search zones");
+  return true;
+}
+//--------------------------------------------------------------------------------------------
+
 }//end namespace
