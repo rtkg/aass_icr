@@ -64,6 +64,7 @@ namespace ICR
       ROS_BREAK();
     }
 
+  get_icr_srv_ = nh_.advertiseService("get_icr",&IcrServer::getIcr,this); 
   compute_sz_srv_ = nh_.advertiseService("compute_search_zones",&IcrServer::triggerSearchZonesCmp,this); 
   compute_icr_srv_ = nh_.advertiseService("compute_icr",&IcrServer::triggerIcrCmp,this); 
   toggle_mode_srv_ = nh_.advertiseService("toggle_mode",&IcrServer::toggleMode,this); 
@@ -72,7 +73,7 @@ namespace ICR
   set_qs_srv_ = nh_.advertiseService("set_spherical_q",&IcrServer::setSphericalQuality,this);
   set_active_phl_srv_ = nh_.advertiseService("set_active_phalanges",&IcrServer::setActivePhalanges,this);
   set_phl_param_srv_ = nh_.advertiseService("set_phalange_parameters",&IcrServer::setPhalangeParameters,this);
-  ct_pts_sub_ = nh_.subscribe("contact_points",1, &IcrServer::graspCallback,this);
+  ct_pts_sub_ = nh_.subscribe("grasp",1, &IcrServer::graspCallback,this);
   icr_cloud_pub_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB> >("icr_cloud",5);
   icr_pub_ = nh_.advertise<icr_msgs::ContactRegions>("contact_regions",5);
 }
@@ -340,6 +341,7 @@ bool IcrServer::setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObjec
   lock_.unlock();
   res.success=true;
 
+  ROS_INFO("Object %s set in the icr_server ",req.object.name.c_str());
   return res.success;
 }
 //------------------------------------------------------------------------
@@ -679,5 +681,24 @@ bool IcrServer::triggerSearchZonesCmp(std_srvs::Empty::Request &req, std_srvs::E
   return true;
 }
 //--------------------------------------------------------------------------------------------
+bool IcrServer::getIcr(icr_msgs::GetContactRegions::Request  &req, icr_msgs::GetContactRegions::Response &res)
+{
+  res.success=false;
+  std::cout<<"in get icr callback of icr server"<<std::endl;
+  lock_.lock();
+  if(!icr_computed_)
+    {
+      ROS_ERROR("ICR are not computed - cannot get ICR");
+      lock_.unlock();
+      return res.success;
+    }
+  res.contact_regions=(*icr_msg_);
+  lock_.unlock();
 
+  res.success=true;
+  std::cout<<"returning icr"<<std::endl;
+
+  return res.success;
+}
+//--------------------------------------------------------------------------------------------
 }//end namespace

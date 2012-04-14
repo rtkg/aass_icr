@@ -39,7 +39,7 @@ class GraspServer
 
   ros::NodeHandle nh_, nh_private_;
   ros::ServiceServer set_obj_srv_;
-  ros::Publisher contact_points_pub_;  
+  ros::Publisher grasp_pub_;  
   //ros::Publisher debug_pub_;//REMOVE  
   boost::mutex lock_;
   bool ref_set_;

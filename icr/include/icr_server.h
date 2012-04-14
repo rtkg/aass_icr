@@ -11,6 +11,7 @@
 #include <icr_msgs/ContactRegions.h>
 #include <icr_msgs/ContactRegion.h>
 #include <icr_msgs/SaveIcr.h>
+#include <icr_msgs/GetContactRegions.h>
 #include "std_srvs/Empty.h"
 #include <boost/thread/mutex.hpp>
 #include <pcl/point_cloud.h>
@@ -79,6 +80,7 @@ class IcrServer
   icr_msgs::ContactRegions::Ptr icr_msg_;
   tf::Transform palm_pose_;
 
+  ros::ServiceServer get_icr_srv_;
   ros::ServiceServer compute_icr_srv_;
   ros::ServiceServer compute_sz_srv_;
   ros::ServiceServer set_obj_srv_;
@@ -103,6 +105,7 @@ class IcrServer
   //  CALLBACKS  //
   /////////////////
 
+ bool getIcr(icr_msgs::GetContactRegions::Request  &req, icr_msgs::GetContactRegions::Response &res);
  bool triggerSearchZonesCmp(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
  bool triggerIcrCmp(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
  bool toggleMode(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);

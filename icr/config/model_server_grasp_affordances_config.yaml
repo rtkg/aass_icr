@@ -1,0 +1,4 @@
+reference_frame_id: "/fixed"
+gazebo_prefix: "/gazebo" 
+uc3m_objtrack_prefix: "/dummy" #put in the actual prefix
+obj_client_topics: ["/icr_server/set_object","/grasp_server/set_object","/grasp_affordances/set_object"] #A ServiceClient call to all connected servers waiting for a object will be made     

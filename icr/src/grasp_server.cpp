@@ -55,7 +55,7 @@ namespace ICR
     }
 
   set_obj_srv_ = nh_.advertiseService("set_object",&GraspServer::setObject,this);
-  contact_points_pub_=nh_.advertise<icr_msgs::Grasp>("contact_points",5); 
+  grasp_pub_=nh_.advertise<icr_msgs::Grasp>("grasp",5); 
   //debug_pub_=nh_.advertise<geometry_msgs::PoseStamped>("debug_ff",5);  
 }
 //-----------------------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ bool GraspServer::setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObj
 
   lock_.unlock();
   res.success=true;
-
+  ROS_INFO("%s set as reference frame id in the grasp_server ", req.object.points.header.frame_id.c_str());
   return res.success;
 }
   //-----------------------------------------------------------------------------------------------
@@ -98,11 +98,11 @@ bool GraspServer::setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObj
 	g.points.push_back(p);
       }
 
-    g.header.frame_id=palm_pose_.frame_id_;
-
+    //Try to get the palm pose expressed in the reference frame id, if the reference is set
     if(ref_set_)
       try
 	{
+	  tf_list_.waitForTransform(palm_pose_.frame_id_,palm_pose_.child_frame_id_,ros::Time(0),ros::Duration(0.5));
 	  tf_list_.lookupTransform(palm_pose_.frame_id_,palm_pose_.child_frame_id_,ros::Time(0), palm_pose_);
 	  tf::Vector3 pos=palm_pose_.getOrigin();
 	  tf::Quaternion ori=palm_pose_.getRotation().normalize();  
@@ -119,9 +119,10 @@ bool GraspServer::setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObj
 	  ROS_ERROR("%s",ex.what());
 	}
 
+    g.header.frame_id=palm_pose_.frame_id_;
     g.header.stamp=palm_pose_.stamp_;
-    contact_points_pub_.publish(g);
-    //tf::TransformListener::lookupTransform (std::string &W, std::string &A, ros::Time &time, StampedTransform &transform)
+    grasp_pub_.publish(g);
+
     // geometry_msgs::PoseStamped dbg;
     // dbg.header=phalanges_[1]->getStampedContactPose()->header;
     // dbg.pose=phalanges_[1]->getStampedContactPose()->contact_pose.pose;

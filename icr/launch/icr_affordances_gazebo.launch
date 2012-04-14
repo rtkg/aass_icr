@@ -7,7 +7,7 @@
             <param name="model_directory" type="string" value="$(find icr)/models"/>
             <param name="object_scale" type="double" value="0.001"/>
             <param name="pose_source" type="string" value="gazebo"/> <!--possible values: "gazebo" or "uc3m_objtrack" -->
-            <rosparam file="$(find icr)/config/model_server_config.yaml" command="load"/>
+            <rosparam file="$(find icr)/config/model_server_grasp_affordances_config.yaml" command="load"/>
        </node>
 
        <node pkg="icr" name="grasp_server" type="grasp_server" output="screen" ns="grasp_server">
