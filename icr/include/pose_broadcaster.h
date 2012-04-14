@@ -26,6 +26,10 @@ namespace ICR
   {
   public:
 
+    //for some reason not defining this macro can crash the pose broadcaster on some systems,
+    //although the class does not contain fixed sized Eigen members ...?
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW 
+
     PoseBroadcaster();
     ~PoseBroadcaster(){};
 

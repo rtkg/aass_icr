@@ -39,6 +39,7 @@ namespace ICR
       {
       ;//wait for the corresponding services here
       }
+
   }
   //-----------------------------------------------------------------------------------
   void PoseBroadcaster::setObject(pcl::PointCloud<pcl::PointNormal> const & obj_cloud, std::string const & obj_name)

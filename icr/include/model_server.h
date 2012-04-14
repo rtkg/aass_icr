@@ -88,28 +88,6 @@ bool gazeboDeleteModel();
 };
 }//end namespace
 
-//REMOVE and replace with the icr_msgs::Object
-//----------------------------------------------------------------------------
-struct Model
-{
-  std::string name_;
-  std::string frame_id_;
-  std::string geom_;
-
-  Model() : name_("default"),frame_id_("default"), geom_("default"){}
-  Model(std::string const & name, std::string const & frame_id,std::string const & geom) : name_(name),frame_id_(frame_id), geom_(geom){}
-
-  friend std::ostream& operator<<(std::ostream &stream,Model const& model)
-{
-  stream <<'\n'<<"MODEL: "<<'\n'
-         <<"Name: "<<model.name_<<'\n'
-         <<"Frame id: "<<model.frame_id_<<'\n'
-<<"Geometry: "<<model.geom_<<'\n'<<'\n';
-
-  return stream;
-}
-};
-
 //--------------------------------------------------------------------------
 
 #endif

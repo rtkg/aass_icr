@@ -14,7 +14,6 @@ namespace ICR
   std::string searched_param;
   XmlRpc::XmlRpcValue phalange_config;
   XmlRpc::XmlRpcValue L_T_Cref;
-  Model phalange_model;
 
   palm_pose_.frame_id_="/default";
   palm_pose_.child_frame_id_="/default";

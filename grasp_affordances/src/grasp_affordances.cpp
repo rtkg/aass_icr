@@ -43,11 +43,11 @@ bool GraspAffordances::fetchIcr(std_srvs::Empty::Request  &req, std_srvs::Empty:
 {
   icr_msgs::GetContactRegions get_icr;
   lock_.lock();
-
-  if(get_icr_clt_.call(get_icr))// || !get_icr.response.success)
+ 
+  get_icr_clt_.call(get_icr);
+  if(!get_icr.response.success)
     {
       ROS_ERROR("Get contact regions client call unsuccessful");
-      std::cout<<"connected to: "<<get_icr_clt_.getService()<<std::endl;
       lock_.unlock();
       return false;
     }
