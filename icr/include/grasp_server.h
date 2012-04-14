@@ -13,7 +13,10 @@
 #include <boost/shared_ptr.hpp>
 #include "icr_msgs/SetObject.h"
 #include <vector>
+#include <string>
 #include "phalange.h"
+#include "tf/tf.h"
+#include <tf/transform_listener.h>
 
 namespace ICR
 {
@@ -39,6 +42,10 @@ class GraspServer
   ros::Publisher contact_points_pub_;  
   //ros::Publisher debug_pub_;//REMOVE  
   boost::mutex lock_;
+  bool ref_set_;
+   tf::TransformListener tf_list_;
+  tf::StampedTransform palm_pose_;
+
 
 /**
  *@brief Vector containing the phalanges of the hand - the order is important

@@ -4,7 +4,7 @@
 #include "ros/ros.h"
 #include "icr.h"
 #include "icr_msgs/SetObject.h"
-#include "icr_msgs/ContactPoints.h"
+#include "icr_msgs/Grasp.h"
 #include "icr_msgs/SetSphericalQuality.h"
 #include "icr_msgs/SetPhalangeParameters.h"
 #include "icr_msgs/SetActivePhalanges.h"
@@ -17,6 +17,7 @@
 #include <pcl/point_types.h>
 #include <vector>
 #include <string>
+#include <tf/tf.h>
 
 /** \class IcrServer icr_server.h 
  * \brief Server that computes Independent Contact Regions
@@ -76,6 +77,7 @@ class IcrServer
   std::string icr_database_dir_;
   boost::mutex lock_;
   icr_msgs::ContactRegions::Ptr icr_msg_;
+  tf::Transform palm_pose_;
 
   ros::ServiceServer compute_icr_srv_;
   ros::ServiceServer compute_sz_srv_;
@@ -93,7 +95,7 @@ class IcrServer
   void getActivePhalangeParameters(FParamList & phl_param);
   unsigned int getPhalangeId(std::string const & name);
   void getFingerParameters(std::string const & name,FingerParameters & f_param);
-  bool cpFromCptsMsg(icr_msgs::ContactPoints const & c_pts,const std::string & name,Eigen::Vector3d & contact_position,bool & touching)const;
+  bool cpFromGraspMsg(icr_msgs::Grasp const & c_pts,const std::string & name,Eigen::Vector3d & contact_position,bool & touching)const;
   void initPtGrasp();  
   bool cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pcl::PointXYZRGB> & cloud, std::vector<unsigned int> & point_ids);
   
@@ -109,7 +111,7 @@ class IcrServer
  bool setSphericalQuality(icr_msgs::SetSphericalQuality::Request  &req, icr_msgs::SetSphericalQuality::Response &res);
  bool setActivePhalanges(icr_msgs::SetActivePhalanges::Request  &req, icr_msgs::SetActivePhalanges::Response &res);
  bool setPhalangeParameters(icr_msgs::SetPhalangeParameters::Request  &req, icr_msgs::SetPhalangeParameters::Response &res);
- void contactPointsCallback(icr_msgs::ContactPoints const & c_pts); 
+ void graspCallback(icr_msgs::Grasp const & grasp); 
 };
 }//end namespace
 

@@ -1,5 +1,5 @@
 Header                  header
-ContactPose         contact_pose
+ContactPose             contact_pose
 
 
 

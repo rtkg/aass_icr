@@ -72,7 +72,7 @@ namespace ICR
   set_qs_srv_ = nh_.advertiseService("set_spherical_q",&IcrServer::setSphericalQuality,this);
   set_active_phl_srv_ = nh_.advertiseService("set_active_phalanges",&IcrServer::setActivePhalanges,this);
   set_phl_param_srv_ = nh_.advertiseService("set_phalange_parameters",&IcrServer::setPhalangeParameters,this);
-  ct_pts_sub_ = nh_.subscribe("contact_points",1, &IcrServer::contactPointsCallback,this);
+  ct_pts_sub_ = nh_.subscribe("contact_points",1, &IcrServer::graspCallback,this);
   icr_cloud_pub_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB> >("icr_cloud",5);
   icr_pub_ = nh_.advertise<icr_msgs::ContactRegions>("contact_regions",5);
 }
@@ -152,6 +152,7 @@ void IcrServer::publish()
   std::vector<unsigned int> point_ids;
 
   icr_cloud.header.frame_id=obj_frame_id_;
+  icr_msg_->header.frame_id=obj_frame_id_;
   for (unsigned int i=0; i < icr_->getNumContactRegions(); i++)
     {
       if(!cloudFromContactRegion(i,region_cloud,point_ids))//convert region i to a point cloud
@@ -170,12 +171,14 @@ void IcrServer::publish()
       icr_msg_->regions.push_back(region_msg);
 
     } 
-
    icr_msg_->parent_obj=icr_->getGrasp()->getParentObj()->getName();
+   tf::poseTFToMsg (palm_pose_,icr_msg_->palm_pose);
+   icr_msg_->header.stamp=ros::Time::now();
+   icr_cloud.header.stamp=ros::Time::now();
 
    icr_cloud_pub_.publish(icr_cloud);
    icr_pub_.publish(*icr_msg_);
-  lock_.unlock();
+   lock_.unlock();
 }
 //-------------------------------------------------------------------------
 bool IcrServer::cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pcl::PointXYZRGB> & cloud, std::vector<unsigned int> & point_ids)
@@ -355,7 +358,7 @@ void IcrServer::initPtGrasp()
     //that OWS list and Patch list can be computed. The init function actually also computes the GWS
     //(should be changed in the icrcpp library). However, since the computation was done with dummy
     //centerpoint ids, the gws_computed_ flag is set to false anyway. The actual GWS with proper
-    //centerpoints will be computed in the getContactPoints callback
+    //centerpoints will be computed in the getGrasp callback
     VectorXui dummy_cp_ids(phl_param.size()); 
     dummy_cp_ids.setZero();
 
@@ -378,16 +381,17 @@ void IcrServer::initPtGrasp()
     }
 
   lock_.lock();
-  
-  //should i set icr_computed_ & sz_computed_ to false here?
 
   qs_=req.qs;
+  icr_computed_=false;
+  sz_computed_=false;
+ 
   lock_.unlock();
   res.success=true;
   return res.success;
 }
   //-------------------------------------------------------------------------
-  void IcrServer::contactPointsCallback(icr_msgs::ContactPoints const & c_pts)
+  void IcrServer::graspCallback(icr_msgs::Grasp const & grasp)
   {
     lock_.lock();
     gws_computed_=false;
@@ -398,6 +402,7 @@ void IcrServer::initPtGrasp()
 	return;
       }
 
+    tf::poseMsgToTF(grasp.palm_pose,palm_pose_);//memorize the pose of the palm
     all_phl_touching_=true;
   
     // struct timeval start, end;
@@ -405,9 +410,9 @@ void IcrServer::initPtGrasp()
     Eigen::Vector3d contact_position;
     bool phl_touching=false; 
     VectorXui centerpoint_ids(active_phalanges_.size());
-    for (unsigned int i=0; i<centerpoint_ids.size();i++)
+    for (int i=0; i<centerpoint_ids.size();i++)
       {
-	if(!cpFromCptsMsg(c_pts,active_phalanges_[i],contact_position,phl_touching))
+	if(!cpFromGraspMsg(grasp,active_phalanges_[i],contact_position,phl_touching))
 	  {
 	    ROS_ERROR("Cannot compute the Grasp Wrench Space");
 	    all_phl_touching_=false;
@@ -438,20 +443,20 @@ void IcrServer::initPtGrasp()
     lock_.unlock();
   }
 //-------------------------------------------------------------------------
-  bool IcrServer::cpFromCptsMsg(icr_msgs::ContactPoints const & c_pts, const std::string & name,Eigen::Vector3d & contact_position,bool & touching)const
+bool IcrServer::cpFromGraspMsg(icr_msgs::Grasp const & grasp, const std::string & name,Eigen::Vector3d & contact_position,bool & touching)const
 {
 
-  for(unsigned int i=0; i<c_pts.points.size();i++)
-      if(!strcmp(name.c_str(),c_pts.points[i].phalange.c_str()))
+  for(unsigned int i=0; i<grasp.points.size();i++)
+      if(!strcmp(name.c_str(),grasp.points[i].phalange.c_str()))
 	{
-          contact_position(0)=c_pts.points[i].position.x;
-          contact_position(1)=c_pts.points[i].position.y;
-          contact_position(2)=c_pts.points[i].position.z;
-          touching=c_pts.points[i].touching;
+          contact_position(0)=grasp.points[i].position.x;
+          contact_position(1)=grasp.points[i].position.y;
+          contact_position(2)=grasp.points[i].position.z;
+          touching=grasp.points[i].touching;
           return true;
         }
     
-  ROS_ERROR("Could not find contact point corresponding to phalange %s in ContactPoints message",name.c_str());
+  ROS_ERROR("Could not find contact point corresponding to phalange %s in Grasp message",name.c_str());
   return false;
 }
 //-------------------------------------------------------------------------
@@ -562,7 +567,7 @@ bool IcrServer::saveIcr(icr_msgs::SaveIcr::Request &req, icr_msgs::SaveIcr::Resp
     }
 
   rosbag::Bag bag(icr_database_dir_+ req.file + ".bag", rosbag::bagmode::Write);
-  bag.write("contact_regions", ros::Time::now(), *icr_msg_);
+  bag.write("contact_regions", icr_msg_->header.stamp, *icr_msg_);
 
   lock_.unlock();
   bag.close();
