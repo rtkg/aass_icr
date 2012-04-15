@@ -13,7 +13,7 @@ GraspAffordances::GraspAffordances() : nh_private_("~"), obj_(new   pcl::PointCl
   //An example of how to get stuff from the parameter server
   std::string search_param;
 
-  nh_private_.searchParam("icr_dbase_dir_ectory", search_param);
+  nh_private_.searchParam("icr_database_directory", search_param);
   nh_private_.getParam(search_param,icr_dbase_dir_);
 
   //initialize Clients, Servers and Publishers
@@ -61,22 +61,21 @@ bool GraspAffordances::fetchIcr(std_srvs::Empty::Request  &req, std_srvs::Empty:
 
   //concatenate the obtained regions to one point cloud (could probably be done more elegantly)
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr reg(new pcl::PointCloud<pcl::PointXYZRGB>);
-  lock_.lock();
   for (unsigned int i=0; i<get_icr.response.contact_regions.regions.size();i++)
     {
       pcl::fromROSMsg(get_icr.response.contact_regions.regions[i].points,*reg);
       (*input_icr_)+=(*reg);
     }
 
-
   icr_set_=true;
   lock_.unlock();
-
+  ROS_INFO("Fetched ICR on service: %s",get_icr_clt_.getService().c_str());
   return true;
 }
 //-------------------------------------------------------------------------------
 void GraspAffordances::publish()
 {
+  lock_.lock();
   //Should publish the fitted regions, not the input regions - this is just an example
   if(input_icr_)
     {
@@ -84,14 +83,17 @@ void GraspAffordances::publish()
       input_icr_->header.frame_id="/Sprayflask_5k";
       pts_pub_.publish(*input_icr_);
     }
+  lock_.unlock();
 }
 //-------------------------------------------------------------------------------
 bool GraspAffordances::computeAffordances(std_srvs::Empty::Request  &req, std_srvs::Empty::Response &res)
 {
+  lock_.lock();
   if(fitInputIcr())
     return true;
   else
     return false;
+  lock_.unlock();
 }
 //-------------------------------------------------------------------------------
 bool GraspAffordances::fitInputIcr()
@@ -105,7 +107,7 @@ bool GraspAffordances::loadIcr(grasp_affordances::LoadIcr::Request  &req, grasp_
 {
   res.success=false;  
   lock_.lock();
-
+  ROS_INFO("Loading ICR from: %s",(icr_dbase_dir_ +req.file+ ".bag").c_str());
   //load the icr
   rosbag::Bag bag(icr_dbase_dir_+ req.file + ".bag");
   rosbag::View view(bag, rosbag::TopicQuery("contact_regions"));
@@ -129,7 +131,6 @@ bool GraspAffordances::loadIcr(grasp_affordances::LoadIcr::Request  &req, grasp_
 
   //concatenate the obtained regions to one point cloud (could probably be done more elegantly)
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr reg(new pcl::PointCloud<pcl::PointXYZRGB>);
-  lock_.lock();
   for (unsigned int i=0; i<icr->regions.size();i++)
     {
       pcl::fromROSMsg(icr->regions[i].points,*reg);
@@ -138,7 +139,7 @@ bool GraspAffordances::loadIcr(grasp_affordances::LoadIcr::Request  &req, grasp_
 
   icr_set_=true;
   lock_.unlock();
-
+  ROS_INFO("Loaded ICR from: %s",(icr_dbase_dir_ +req.file+ ".bag").c_str());
   res.success=true;
   return res.success;
 }

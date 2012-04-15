@@ -38,12 +38,12 @@ class GraspAffordances
   boost::mutex lock_;
 
  /**
- * @brief Service which wraps a client call to the model server in order to get the current ICR - object (API might change - maybe a direct connection to the server)
+ * @brief Service for setting an object
  *
  */
   ros::ServiceServer set_obj_srv_;
  /**
- * @brief Service which wraps a client call to the icr server to get ICR's
+ * @brief Service which wraps a client call to the connected icr server to get ICR's
  *
  */
   ros::ServiceServer fetch_icr_srv_;
@@ -52,7 +52,15 @@ class GraspAffordances
  *
  */
   ros::ServiceServer compute_aff_srv_;
-ros::ServiceServer load_icr_srv_;
+ /**
+ * @brief Service loading ICR's from the specified database directory
+ *
+ */
+  ros::ServiceServer load_icr_srv_;
+ /**
+ * @brief Client which calls the connected icr server to get ICR's
+ *
+ */
   ros::ServiceClient get_icr_clt_;
  /**
  * @brief Point cloud publisher
@@ -73,6 +81,11 @@ ros::ServiceServer load_icr_srv_;
 
   bool obj_set_;
   bool icr_set_;
+ /**
+ * @brief string holding the path to the ICR database directory - loaded from the parameter server
+ * in the constructor of GraspAffordances::GraspAffordances()
+ *
+ */
   std::string icr_dbase_dir_;
 
   bool fitInputIcr();

@@ -684,7 +684,6 @@ bool IcrServer::triggerSearchZonesCmp(std_srvs::Empty::Request &req, std_srvs::E
 bool IcrServer::getIcr(icr_msgs::GetContactRegions::Request  &req, icr_msgs::GetContactRegions::Response &res)
 {
   res.success=false;
-  std::cout<<"in get icr callback of icr server"<<std::endl;
   lock_.lock();
   if(!icr_computed_)
     {
@@ -696,8 +695,6 @@ bool IcrServer::getIcr(icr_msgs::GetContactRegions::Request  &req, icr_msgs::Get
   lock_.unlock();
 
   res.success=true;
-  std::cout<<"returning icr"<<std::endl;
-
   return res.success;
 }
 //--------------------------------------------------------------------------------------------
