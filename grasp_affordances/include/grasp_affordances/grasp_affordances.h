@@ -10,6 +10,7 @@
 #include "ros/ros.h"
 #include <boost/thread/mutex.hpp>
 #include <icr_msgs/SetObject.h>
+#include <grasp_affordances/LoadIcr.h>
 #include <icr_msgs/GetContactRegions.h>
 #include <std_srvs/Empty.h>
 #include <pcl/point_cloud.h>
@@ -51,7 +52,7 @@ class GraspAffordances
  *
  */
   ros::ServiceServer compute_aff_srv_;
-
+ros::ServiceServer load_icr_srv_;
   ros::ServiceClient get_icr_clt_;
  /**
  * @brief Point cloud publisher
@@ -80,6 +81,7 @@ class GraspAffordances
   //  CALLBACKS  //
   /////////////////
 
+  bool loadIcr(grasp_affordances::LoadIcr::Request  &req, grasp_affordances::LoadIcr::Response &res);
   bool computeAffordances(std_srvs::Empty::Request  &req, std_srvs::Empty::Response &res);
   bool setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObject::Response &res);
   bool fetchIcr(std_srvs::Empty::Request  &req, std_srvs::Empty::Response &res);

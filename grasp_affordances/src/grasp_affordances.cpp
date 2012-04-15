@@ -1,7 +1,10 @@
 #include "grasp_affordances/grasp_affordances.h"
 #include <pcl/ros/conversions.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <icr_msgs/ContactRegions.h>
 #include <pcl_ros/point_cloud.h>
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
 
 //--------------------------------------------------------------------------
 GraspAffordances::GraspAffordances() : nh_private_("~"), obj_(new   pcl::PointCloud<pcl::PointNormal>),
@@ -10,10 +13,11 @@ GraspAffordances::GraspAffordances() : nh_private_("~"), obj_(new   pcl::PointCl
   //An example of how to get stuff from the parameter server
   std::string search_param;
 
-  nh_private_.searchParam("icr_database_directory", search_param);
+  nh_private_.searchParam("icr_dbase_dir_ectory", search_param);
   nh_private_.getParam(search_param,icr_dbase_dir_);
 
   //initialize Clients, Servers and Publishers
+  load_icr_srv_ = nh_.advertiseService("load_icr",&GraspAffordances::loadIcr,this);
   compute_aff_srv_ = nh_.advertiseService("compute_affordances",&GraspAffordances::computeAffordances,this);
   set_obj_srv_ = nh_.advertiseService("set_object",&GraspAffordances::setObject,this);
   fetch_icr_srv_ = nh_.advertiseService("fetch_icr",&GraspAffordances::fetchIcr,this);
@@ -52,19 +56,19 @@ bool GraspAffordances::fetchIcr(std_srvs::Empty::Request  &req, std_srvs::Empty:
       return false;
     }
 
-  //concatenate the obtained regions to one point cloud (could probably be done more elegantly)
-  pcl::PointCloud<pcl::PointXYZRGB> icr;
-  pcl::PointCloud<pcl::PointXYZRGB> reg;
-  icr.header.frame_id=get_icr.response.contact_regions.regions[0].points.header.frame_id;
+  input_icr_->clear();
+  input_icr_->header.frame_id=get_icr.response.contact_regions.regions[0].points.header.frame_id;
 
+  //concatenate the obtained regions to one point cloud (could probably be done more elegantly)
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr reg(new pcl::PointCloud<pcl::PointXYZRGB>);
   lock_.lock();
   for (unsigned int i=0; i<get_icr.response.contact_regions.regions.size();i++)
     {
-      pcl::fromROSMsg(get_icr.response.contact_regions.regions[i].points,reg);
-      icr+=reg;
+      pcl::fromROSMsg(get_icr.response.contact_regions.regions[i].points,*reg);
+      (*input_icr_)+=(*reg);
     }
 
-  input_icr_.reset(new pcl::PointCloud<pcl::PointXYZRGB>(icr));
+
   icr_set_=true;
   lock_.unlock();
 
@@ -95,5 +99,47 @@ bool GraspAffordances::fitInputIcr()
   //Do the fitting stuff here
 
   return true;
+}
+//-------------------------------------------------------------------------------
+bool GraspAffordances::loadIcr(grasp_affordances::LoadIcr::Request  &req, grasp_affordances::LoadIcr::Response &res)
+{
+  res.success=false;  
+  lock_.lock();
+
+  //load the icr
+  rosbag::Bag bag(icr_dbase_dir_+ req.file + ".bag");
+  rosbag::View view(bag, rosbag::TopicQuery("contact_regions"));
+
+  icr_msgs::ContactRegions::Ptr icr(new icr_msgs::ContactRegions);
+  //It's actually assumed that the bag only contains one message
+  BOOST_FOREACH(rosbag::MessageInstance const m, view)
+    {
+      icr = m.instantiate<icr_msgs::ContactRegions>();
+      if (input_icr_ == NULL)
+  	{
+  	  ROS_ERROR("Could not load %s",(icr_dbase_dir_ +req.file+ ".bag").c_str());
+  	  lock_.unlock();
+          return res.success;
+  	}
+    }
+  bag.close();
+
+  input_icr_->clear();
+  input_icr_->header.frame_id=icr->regions[0].points.header.frame_id;
+
+  //concatenate the obtained regions to one point cloud (could probably be done more elegantly)
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr reg(new pcl::PointCloud<pcl::PointXYZRGB>);
+  lock_.lock();
+  for (unsigned int i=0; i<icr->regions.size();i++)
+    {
+      pcl::fromROSMsg(icr->regions[i].points,*reg);
+      (*input_icr_)+=(*reg);
+    }
+
+  icr_set_=true;
+  lock_.unlock();
+
+  res.success=true;
+  return res.success;
 }
 //-------------------------------------------------------------------------------
