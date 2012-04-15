@@ -10,6 +10,7 @@
 #include "icr_msgs/ContactState.h"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <math.h>
 
 //-------------------------------------------------------------------
 SensorRemapper::SensorRemapper() : nh_private_("~")
@@ -79,7 +80,7 @@ void SensorRemapper::remapKclMsgsKclContactStateStamped(kcl_msgs::KCL_ContactSta
   state.header.stamp=msg->header.stamp;
   state.header.frame_id=msg->header.frame_id;
 
-  if(msg->Fnormal < 1.0e-5)
+  if(pow(msg->contact_normal.x,2)+pow(msg->contact_normal.y,2)+ pow(msg->contact_normal.z,2) < 1.0e-5)
     {
       state.info="not_touching";
       c_state_pubs_[topic_id].publish(state);

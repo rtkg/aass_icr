@@ -1,0 +1,8 @@
+Tortoise_5k.dae
+beer_can.dae
+Sprayflask_5k.dae
+ShowerGel_5k.dae
+RedCup_5k.dae
+CokePlasticSmall_5k.dae
+cup_luigi.dae
+duck.dae

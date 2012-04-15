@@ -69,7 +69,7 @@ class ModelServer
 
 bool loadURDF(std::string const & path,std::string & serialized_model);
 bool gazeboSpawnModel(std::string const & serialized_model,geometry_msgs::Pose const & initial_pose);
-bool gazeboDeleteModel();
+ bool gazeboDeleteModel(std::string const & name);
  bool loadWavefrontObj(std::string const & path, pcl::PointCloud<pcl::PointNormal> & cloud, std::vector<std::vector<unsigned int> > & neighbors );
 
  

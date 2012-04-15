@@ -6,9 +6,9 @@ pname = sys.argv[1]
 
 # read model names
 stllist = []
-fstlist = open("stllist.txt","r")
+fstlist = open("daelist.txt","r")
 for fname in fstlist:
-    stllist.append(fname.replace(".stl","").replace("\n",""))
+    stllist.append(fname.replace(".dae","").replace("\n",""))
 print stllist
 fstlist.close()
           

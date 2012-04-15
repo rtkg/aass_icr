@@ -419,7 +419,7 @@ namespace ICR
 	    lock_.unlock();
 	    return;
 	  }
-
+	//	std::cout<<active_phalanges_[i]<<": "<<phl_touching<<" ";
 	if(!phl_touching)
 	  all_phl_touching=false;   
    
@@ -429,7 +429,7 @@ namespace ICR
 	// c_time += end.tv_sec - start.tv_sec + 0.000001 * (end.tv_usec - start.tv_usec);
       }
     //std::cout<<"Computation time: "<<c_time<<" s"<<std::endl;  
-
+    //  std::cout<<"all ph:"<<all_phl_touching<<std::endl;
     pt_grasp_->setCenterPointIds(centerpoint_ids); //this computes the Grasp Wrench Space
     gws_computed_=true;
 

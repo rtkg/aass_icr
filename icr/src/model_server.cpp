@@ -48,13 +48,11 @@ namespace ICR
          }
     }
 
-  load_obj_srv_ = nh_.advertiseService("load_object",&ModelServer::loadObject,this);
   gazebo_spawn_clt_ = nh_.serviceClient<gazebo_msgs::SpawnModel>(gazebo_prefix + "/spawn_urdf_model");
   gazebo_delete_clt_ = nh_.serviceClient<gazebo_msgs::DeleteModel>(gazebo_prefix + "/delete_model");
   gazebo_get_wp_clt_ = nh_.serviceClient<gazebo_msgs::GetWorldProperties>(gazebo_prefix + "/get_world_properties");
   gazebo_pause_clt_ = nh_.serviceClient<std_srvs::Empty>(gazebo_prefix + "/pause_physics");
   gazebo_unpause_clt_ = nh_.serviceClient<std_srvs::Empty>(gazebo_prefix + "/unpause_physics");
-
 
   //If Gazebo is the intended pose source, wait for Gazebo services to be available 
   if(!strcmp(pose_source_.c_str(),"gazebo"))
@@ -68,7 +66,8 @@ namespace ICR
   //Wait for the connected set_object services to be available
   for(unsigned int i=0;i<set_obj_clts_.size();i++)
     set_obj_clts_[i]->waitForExistence();
-
+  
+ load_obj_srv_ = nh_.advertiseService("load_object",&ModelServer::loadObject,this);
 }
   //--------------------------------------------------------------------------------
   bool ModelServer::loadObject(icr_msgs::LoadObject::Request  &req, icr_msgs::LoadObject::Response &res)
@@ -80,7 +79,17 @@ namespace ICR
 
     //delete the previous model in Gazebo if Gazebo is the intended pose source
     if(!strcmp(pose_source_.c_str(),"gazebo"))  
-      if(!gazeboDeleteModel())
+      if(!gazeboDeleteModel(obj_name_))
+	{
+	  lock_.unlock();
+	  return res.success;
+	}
+
+    //if a model is currently spawned in gazebo whichs name conforms to the file name in the
+    //request, also delete it (this might be the case if there already was a model spawned in Gazebo
+    //prior to the start of the model_server)
+    if(!strcmp(pose_source_.c_str(),"gazebo"))  
+      if(!gazeboDeleteModel(req.file))
 	{
 	  lock_.unlock();
 	  return res.success;
@@ -217,7 +226,7 @@ bool ModelServer::gazeboSpawnModel(std::string const & serialized_model,geometry
   return true;
 }
 //--------------------------------------------------------------------------
- bool ModelServer::gazeboDeleteModel()
+  bool ModelServer::gazeboDeleteModel(std::string const & name)
   {
 
     gazebo_msgs::GetWorldProperties get_wp;
@@ -230,23 +239,23 @@ bool ModelServer::gazeboSpawnModel(std::string const & serialized_model,geometry
 	return false;
       }
 
-    delete_model.request.model_name=obj_name_;
+    delete_model.request.model_name=name;
 
     //see if a model with the obj_name_ is currently spawned, if yes delete it
     for(unsigned int i=0; i < get_wp.response.model_names.size();i++ )
       {
-        if(!strcmp(get_wp.response.model_names[i].c_str(),obj_name_.c_str()))  
+        if(!strcmp(get_wp.response.model_names[i].c_str(),name.c_str()))  
 	  {
 	    gazebo_pause_clt_.call(empty);
 	    if(!gazebo_delete_clt_.call(delete_model))
 	      {
-		ROS_WARN("Could not delete model %s",obj_name_.c_str());
+		ROS_WARN("Could not delete model %s",name.c_str());
 	      }
 	    gazebo_unpause_clt_.call(empty);
+            ROS_INFO("Deleted model %s in Gazebo",name.c_str());
 	    break;
 	  }
       }
-
 
     return true;
   }
@@ -263,7 +272,7 @@ bool ModelServer::gazeboSpawnModel(std::string const & serialized_model,geometry
       return false;
     }
   obj_loader.getObject()->scaleObject(scale_);
- 
+  double xmax=0;
   pcl::PointNormal p;
   neighbors.resize(obj_loader.getObject()->getNumCp());
   for(unsigned int i=0; i<obj_loader.getObject()->getNumCp();i++)
@@ -276,13 +285,17 @@ bool ModelServer::gazeboSpawnModel(std::string const & serialized_model,geometry
       p.normal[0]=vn->x();  p.normal[1]=vn->y();  p.normal[2]=vn->z(); 
       p.curvature=0; //not estimated
       cloud.push_back(p);
+      if(p.x > xmax)
+        xmax=p.x;
+
+
     }
   cloud.header.frame_id=obj_frame_id_;
   cloud.header.stamp=ros::Time::now();
   cloud.width = cloud.size();
   cloud.height = 1;
   cloud.is_dense=true;
-
+  std::cout<<"XMAX: "<<xmax<<std::endl;
   return true;
 }
 //--------------------------------------------------------------------------

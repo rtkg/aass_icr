@@ -1,5 +1,9 @@
 Initial pose offsets for the /icr/load_object service in order to spawn the objects in a proper initial pose w.r.t the desk specified in /sr_teleop/robot/desk.xml
 
 Sprayflask_5k: rosservice call /model_server/load_object '{file: "Sprayflask_5k", initial_pose: {position: [0.7, -0.05, 1.15],orientation: [0.2888,0.6454,0.6454,0.2888]}}'
+CokePlasticSmall_5k: rosservice call /model_server/load_object '{file: "CokePlasticSmall_5k", initial_pose: {position: [0.69, -0.07, 1.14],orientation: [0.2888,0.6454,0.6454,0.2888]}}'
+cup_luigi: rosservice call /model_server/load_object '{file: "cup_luigi", initial_pose: {position: [0.7, -0.05, 1.08],orientation: [0.0,0.0,0.9874,-0.158]}}'
+
+
 
 
