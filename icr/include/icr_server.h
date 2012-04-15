@@ -3,6 +3,8 @@
 
 #include "ros/ros.h"
 #include "icr.h"
+
+//icr_msgs
 #include "icr_msgs/SetObject.h"
 #include "icr_msgs/Grasp.h"
 #include "icr_msgs/SetSphericalQuality.h"
@@ -12,10 +14,15 @@
 #include <icr_msgs/ContactRegion.h>
 #include <icr_msgs/SaveIcr.h>
 #include <icr_msgs/GetContactRegions.h>
-#include "std_srvs/Empty.h"
-#include <boost/thread/mutex.hpp>
+
+//PCL specific includes
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/ros/conversions.h>
+#include <pcl_ros/point_cloud.h>
+
+#include "std_srvs/Empty.h"
+#include <boost/thread/mutex.hpp>
 #include <vector>
 #include <string>
 #include <tf/tf.h>
@@ -74,7 +81,6 @@ class IcrServer
   int computation_mode_;
   double qs_;
   std::string obj_frame_id_;
-  bool all_phl_touching_;
   std::string icr_database_dir_;
   boost::mutex lock_;
   icr_msgs::ContactRegions::Ptr icr_msg_;
