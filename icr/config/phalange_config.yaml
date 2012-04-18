@@ -5,7 +5,7 @@ phalanges:
        L_T_Cref: [0.0,-0.009,0.022,1.57,0.0,0.0]
        force_magnitude: 1.0
        fc_disc: 8
-       mu_0: 0.5
+       mu_0: 0.8
        mu_T: 0.5
        contact_type: Frictional
        model_type: Single_Point 
@@ -20,7 +20,7 @@ phalanges:
        L_T_Cref: [0.0,-0.007,0.018,1.45,0.0,0.0]
        force_magnitude: 1.0
        fc_disc: 8
-       mu_0: 0.5
+       mu_0: 0.8
        mu_T: 0.5
        contact_type: Frictional
        model_type: Single_Point 
@@ -35,7 +35,7 @@ phalanges:
        L_T_Cref: [0.0,-0.007,0.018,1.45,0.0,0.0]
        force_magnitude: 1.0
        fc_disc: 8
-       mu_0: 0.5
+       mu_0: 0.8
        mu_T: 0.5
        contact_type: Frictional
        model_type: Single_Point 
@@ -50,7 +50,7 @@ phalanges:
        L_T_Cref: [0.0,-0.007,0.018,1.45,0.0,0.0]
        force_magnitude: 1.0
        fc_disc: 8
-       mu_0: 0.5
+       mu_0: 0.8
        mu_T: 0.5
        contact_type: Frictional
        model_type: Single_Point 
@@ -65,7 +65,7 @@ phalanges:
        L_T_Cref: [0.0,-0.006,0.016,1.45,0.0,0.0]
        force_magnitude: 1.0
        fc_disc: 8
-       mu_0: 0.5
+       mu_0: 0.8
        mu_T: 0.5
        contact_type: Frictional
        model_type: Single_Point 

@@ -29,7 +29,6 @@ class SensorRemapper
   ros::NodeHandle nh_, nh_private_;
   ros::V_Subscriber sensor_subs_;
   ros::V_Publisher c_state_pubs_;
-
   ros::Subscriber createSubscriber(std::string const & name, std::string const &  type, unsigned int topic_id);
 
 

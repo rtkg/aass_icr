@@ -407,9 +407,10 @@ namespace ICR
   
     // struct timeval start, end;
     // double c_time=0;
-    Eigen::Vector3d contact_position;
-    bool all_phl_touching=true;
+  
+    bool all_phl_touching=true; //not used right now
     bool phl_touching;
+    Eigen::Vector3d contact_position;
     VectorXui centerpoint_ids(active_phalanges_.size());
     for (int i=0; i<centerpoint_ids.size();i++)
       {
@@ -434,11 +435,11 @@ namespace ICR
     gws_computed_=true;
 
     //EXPERIMENTAL!!!!!!!!!!!!!!!!!!!! just check if its feasible to stop computatin once all fingers are in touch (e.g. for saving icr)
-    if(all_phl_touching && (computation_mode_ == MODE_CONTINUOUS))
-      {
-	computation_mode_=MODE_STEP_WISE;   
-	ROS_INFO("All active phalanges are touching - leaving continuous mode and entering step wise mode...");
-      }
+    // if(all_phl_touching && (computation_mode_ == MODE_CONTINUOUS))
+    //   {
+    // 	computation_mode_=MODE_STEP_WISE;   
+    // 	ROS_INFO("All active phalanges are touching - leaving continuous mode and entering step wise mode...");
+    //   }
 
     lock_.unlock();
   }
