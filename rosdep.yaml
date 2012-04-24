@@ -29,18 +29,16 @@ Qhull-2011.2:
       cd `rospack find libqhull`/Qhull-2011.2	
       make
       make install
-#      make clean
-
 
 libicr:
   ubuntu: |
       if [ ! -f `rospack find libicr`/icrcpp/lib/libicr.a ] ; then
         cd `rospack find libicr`
         rm -r -f icrcpp
-        wget --no-check-certificate https://github.com/rtkg/icrcpp/tarball/master
-        tar xpvf master
+        wget --no-check-certificate -O v1.0.tar.gz https://github.com/rtkg/icrcpp/tarball/v1.0 
+        tar xpvf v1.0.tar.gz
         mv rtkg-icrcpp-* icrcpp
-        rm master
+        rm -f v1.0.tar.gz
         cd icrcpp
       fi
       cd `rospack find libicr`/icrcpp

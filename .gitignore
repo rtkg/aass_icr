@@ -62,6 +62,7 @@ libqhull/Qhull-2011.2
 *.dll
 *.lib
 *.exe
+*.bag
 *.o
 *.md5sum
 
