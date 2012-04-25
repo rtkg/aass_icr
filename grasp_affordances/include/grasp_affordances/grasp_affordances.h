@@ -77,7 +77,7 @@ class GraspAffordances
  * @brief boost::shared_ptr to the concatenated input icr cloud
  *
  */
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr input_icr_;
+  pcl::PointCloud<pcl::PointNormal>::Ptr input_icr_;
 
   bool obj_set_;
   bool icr_set_;

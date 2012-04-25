@@ -8,7 +8,7 @@
 
 //--------------------------------------------------------------------------
 GraspAffordances::GraspAffordances() : nh_private_("~"), obj_(new   pcl::PointCloud<pcl::PointNormal>),
-                                       input_icr_(new pcl::PointCloud<pcl::PointXYZRGB>), obj_set_(false),icr_set_(false)
+                                       input_icr_(new pcl::PointCloud<pcl::PointNormal>), obj_set_(false),icr_set_(false)
 {
   //An example of how to get stuff from the parameter server
   std::string search_param;
@@ -60,7 +60,7 @@ bool GraspAffordances::fetchIcr(std_srvs::Empty::Request  &req, std_srvs::Empty:
   input_icr_->header.frame_id=get_icr.response.contact_regions.regions[0].points.header.frame_id;
 
   //concatenate the obtained regions to one point cloud (could probably be done more elegantly)
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr reg(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointNormal>::Ptr reg(new pcl::PointCloud<pcl::PointNormal>);
   for (unsigned int i=0; i<get_icr.response.contact_regions.regions.size();i++)
     {
       pcl::fromROSMsg(get_icr.response.contact_regions.regions[i].points,*reg);
@@ -130,7 +130,7 @@ bool GraspAffordances::loadIcr(grasp_affordances::LoadIcr::Request  &req, grasp_
   input_icr_->header.frame_id=icr->regions[0].points.header.frame_id;
 
   //concatenate the obtained regions to one point cloud (could probably be done more elegantly)
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr reg(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointNormal>::Ptr reg(new pcl::PointCloud<pcl::PointNormal>);
   for (unsigned int i=0; i<icr->regions.size();i++)
     {
       pcl::fromROSMsg(icr->regions[i].points,*reg);
