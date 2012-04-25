@@ -105,7 +105,7 @@ class IcrServer
   void getFingerParameters(std::string const & name,FingerParameters & f_param);
   bool cpFromGraspMsg(icr_msgs::Grasp const & c_pts,const std::string & name,Eigen::Vector3d & contact_position,bool & touching)const;
   void initPtGrasp();  
-  bool cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pcl::PointXYZRGB> & cloud, std::vector<unsigned int> & point_ids);
+  bool cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pcl::PointXYZRGBNormal> & cloud, std::vector<unsigned int> & point_ids);
   
   /////////////////
   //  CALLBACKS  //

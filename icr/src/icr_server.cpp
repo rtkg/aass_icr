@@ -72,7 +72,7 @@ namespace ICR
     set_active_phl_srv_ = nh_.advertiseService("set_active_phalanges",&IcrServer::setActivePhalanges,this);
     set_phl_param_srv_ = nh_.advertiseService("set_phalange_parameters",&IcrServer::setPhalangeParameters,this);
     ct_pts_sub_ = nh_.subscribe("grasp",1, &IcrServer::graspCallback,this);
-    icr_cloud_pub_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB> >("icr_cloud",5);
+    icr_cloud_pub_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGBNormal> >("icr_cloud",5);
     icr_pub_ = nh_.advertise<icr_msgs::ContactRegions>("contact_regions",5);
   }
   //------------------------------------------------------------------------
@@ -143,10 +143,13 @@ namespace ICR
 	return;
       }
 
+    //the conversion to the icr message maybe should go in the computation of the contact regions,
+    //so its not necessary for icr to be published in order to be saved to a file
+
     icr_msg_->regions.clear();
  
-    pcl::PointCloud<pcl::PointXYZRGB> region_cloud;
-    pcl::PointCloud<pcl::PointXYZRGB> icr_cloud;
+    pcl::PointCloud<pcl::PointXYZRGBNormal> region_cloud;
+    pcl::PointCloud<pcl::PointXYZRGBNormal> icr_cloud;
     icr_msgs::ContactRegion region_msg;
     std::vector<unsigned int> point_ids;
 
@@ -180,7 +183,7 @@ namespace ICR
     lock_.unlock();
   }
   //-------------------------------------------------------------------------
-  bool IcrServer::cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pcl::PointXYZRGB> & cloud, std::vector<unsigned int> & point_ids)
+  bool IcrServer::cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pcl::PointXYZRGBNormal> & cloud, std::vector<unsigned int> & point_ids)
   {
    
     if(!icr_computed_)
@@ -209,10 +212,12 @@ namespace ICR
 	//need to check the vertices from the ICR grasp's parent obj whichs associated OWS list and
 	//Patch list were used to compute the given ICR
 	const Eigen::Vector3d* v = icr_->getGrasp()->getParentObj()->getContactPoint(pt_id)->getVertex();
-	pcl::PointXYZRGB pt;
+        const Eigen::Vector3d* vn = icr_->getGrasp()->getParentObj()->getContactPoint(pt_id)->getVertexNormal();
+
+	pcl::PointXYZRGBNormal pt;
 	pt.x=v->x(); pt.y=v->y();pt.z=v->z();
 	pt.r=color(0); pt.g=color(1); pt.b=color(2);
-
+        pt.normal[0]=vn->x();pt.normal[0]=vn->y();pt.normal[0]=vn->z();
 	cloud.points.push_back(pt);
       }
       
