@@ -14,6 +14,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 
 namespace ICR
 {
@@ -81,9 +82,11 @@ namespace ICR
  *
  */
     std::string ref_frame_id_;
+    std::string camera_frame_id_;
     ros::ServiceClient gazebo_get_ms_clt_;
     ros::ServiceClient get_tracked_obj_;
 
+    tf::TransformListener tf_list_;
 /**
  * @brief Gets the pose from a client call to Gazebo's /get_model_state service
  * @arguments Takes a tf::Transform reference and writes the acquired pose to it

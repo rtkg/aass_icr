@@ -11,7 +11,7 @@
 
 namespace ICR
 {
-  PoseBroadcaster::PoseBroadcaster() : nh_private_("~"),ref_frame_id_("/fixed")
+  PoseBroadcaster::PoseBroadcaster() : nh_private_("~"),ref_frame_id_("/fixed"),camera_frame_id_("/camera_rgb_frame")
   {
     std::string param;
     std::string gazebo_prefix;
@@ -24,6 +24,11 @@ namespace ICR
       nh_private_.getParam(param, ref_frame_id_);
     else
       ROS_WARN("No reference frame id found on the parameter server - using %s",ref_frame_id_.c_str());
+
+  if(nh_private_.searchParam("camera_frame_id", param)) //try to read the camera frame from the parameter server
+      nh_private_.getParam(param, camera_frame_id_);
+    else
+      ROS_WARN("No camera frame id found on the parameter server - using %s",camera_frame_id_.c_str());
 
     nh_private_.searchParam("gazebo_prefix", param);
     nh_private_.getParam(param, gazebo_prefix);
@@ -116,12 +121,28 @@ namespace ICR
     //   tf::Transform transform; // transform that is broadcasted
     detected_pose.pose = obj_pose.response.object.pose;
     object_pose_.setOrigin(tf::Vector3(detected_pose.pose.position.x,
-				    detected_pose.pose.position.y,
-				    detected_pose.pose.position.z));
+				       detected_pose.pose.position.y,
+				       detected_pose.pose.position.z));
     object_pose_.setRotation(tf::Quaternion(detected_pose.pose.orientation.x,
-					 detected_pose.pose.orientation.y,
-					 detected_pose.pose.orientation.z,
-					 detected_pose.pose.orientation.w ));
+					    detected_pose.pose.orientation.y,
+					    detected_pose.pose.orientation.z,
+					    detected_pose.pose.orientation.w ));
+
+
+    tf::StampedTransform R_T_C;//camera pose expressed in the reference frame
+    R_T_C.stamp_=obj_pose.response.object.header.stamp;
+    try
+      {
+	tf_list_.waitForTransform(ref_frame_id_, camera_frame_id_, R_T_C.stamp_, ros::Duration(1.0));
+	tf_list_.lookupTransform(ref_frame_id_, camera_frame_id_,R_T_C.stamp_,R_T_C);
+      }
+    catch (tf::TransformException ex){
+      ROS_ERROR("%s",ex.what());
+      return false;
+    }
+
+    object_pose_=R_T_C*object_pose_; //object pose R_T_O expressed in the reference frame
+
     return true;
   }
   //-----------------------------------------------------------------------------------

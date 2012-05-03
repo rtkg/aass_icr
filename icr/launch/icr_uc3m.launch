@@ -6,7 +6,6 @@
     <node pkg="icr" name="model_server" type="model_server" output="screen" ns="model_server">
             <param name="model_directory" type="string" value="$(find icr)/models"/>
             <param name="object_scale" type="double" value="1.0"/>
-            <param name="uc3m_objtrack_prefix" type="string" value="/oru_hdb"/>
             <param name="pose_source" type="string" value="uc3m_objtrack"/> <!--possible values: "gazebo" or "uc3m_objtrack" -->
             <rosparam file="$(find icr)/config/model_server_config.yaml" command="load"/>
        </node>
