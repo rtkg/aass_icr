@@ -6,3 +6,8 @@ RedCup_5k.dae
 CokePlasticSmall_5k.dae
 cup_luigi.dae
 duck.dae
+coke_can.dae
+cup_luigi_paris_v01.dae
+cola_paris_v01.dae
+horse_paris_v01.dae
+

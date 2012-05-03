@@ -7,6 +7,7 @@
 #include "../include/pose_broadcaster.h"
 #include <tf/tf.h>
 #include <gazebo_msgs/GetModelState.h>
+#include <icr_msgs/GetObjectPose.h>
 
 namespace ICR
 {
@@ -31,14 +32,13 @@ namespace ICR
     nh_private_.getParam(param, uc3m_objtrack_prefix);
 
     gazebo_get_ms_clt_ = nh_.serviceClient<gazebo_msgs::GetModelState>(gazebo_prefix + "/get_model_state");
+    get_tracked_obj_ = nh_.serviceClient<icr_msgs::GetObjectPose>(uc3m_objtrack_prefix + "/get_object_pose");
 
     //If Gazebo is the intended pose source, wait for Gazebo services to be available 
     if(!strcmp(pose_source_.c_str(),"gazebo"))
       gazebo_get_ms_clt_.waitForExistence();  
     else if(!strcmp(pose_source_.c_str(),"uc3m_objtrack"))
-      {
-      ;//wait for the corresponding services here
-      }
+       get_tracked_obj_.waitForExistence();  
 
   }
   //-----------------------------------------------------------------------------------
@@ -52,24 +52,29 @@ namespace ICR
   //-----------------------------------------------------------------------------------
   void PoseBroadcaster::broadcastPose()
   {
-    tf::Transform pose;
+    // kca, 29 Apr 2012, pose is a member of PoseBroadcaster
+    //    tf::Transform pose;
     lock_.lock();
 
     if(!strcmp(pose_source_.c_str(),"gazebo")) //Gazebo is defined as pose source
       {
-	if(!getPoseGazebo(pose))
+	if(!getPoseGazebo())
 	  {
 	    lock_.unlock();
 	    return;
 	  }
       }
+    //kca, 29 April 2012, : this is commented since now in uc3m_objtrack mode the pose of the object is obtained only once while loading the new model of an object.
+    //
     else if(!strcmp(pose_source_.c_str(),"uc3m_objtrack")) //The UC3M objecttracker is defined as pose source
       {
-	if(!getPoseUC3MObjtrack(pose))
-	  {
-	    lock_.unlock();
-	    return;
-	  }
+	// DO NOTHING NOW, pose is calculated only once when loading object
+
+    	// if(!getPoseUC3MObjtrack(pose))
+    	//   {
+    	//     lock_.unlock();
+    	//     return;
+    	//   }
       }
     else
       {
@@ -79,12 +84,12 @@ namespace ICR
       }
     
     //Broadcast the pose to tf
-    tf_brc_.sendTransform(tf::StampedTransform(pose, ros::Time::now(),ref_frame_id_, obj_cloud_.header.frame_id));
+    tf_brc_.sendTransform(tf::StampedTransform(object_pose_, ros::Time::now(),ref_frame_id_, obj_cloud_.header.frame_id));
 
     lock_.unlock();
   }
   //-----------------------------------------------------------------------------------
-  bool PoseBroadcaster::getPoseGazebo(tf::Transform & pose)
+  bool PoseBroadcaster::getPoseGazebo()
   {
     gazebo_msgs::GetModelState get_ms;
     get_ms.request.model_name=obj_name_;
@@ -95,16 +100,28 @@ namespace ICR
 	return false;
       }
 
-    pose.setOrigin(tf::Vector3(get_ms.response.pose.position.x,get_ms.response.pose.position.y,get_ms.response.pose.position.z));
-    pose.setRotation(tf::Quaternion(get_ms.response.pose.orientation.x,get_ms.response.pose.orientation.y,get_ms.response.pose.orientation.z,get_ms.response.pose.orientation.w));
+    object_pose_.setOrigin(tf::Vector3(get_ms.response.pose.position.x,get_ms.response.pose.position.y,get_ms.response.pose.position.z));
+    object_pose_.setRotation(tf::Quaternion(get_ms.response.pose.orientation.x,get_ms.response.pose.orientation.y,get_ms.response.pose.orientation.z,get_ms.response.pose.orientation.w));
     return true;
   }
   //-----------------------------------------------------------------------------------
-  bool PoseBroadcaster::getPoseUC3MObjtrack(tf::Transform & pose)
+  bool PoseBroadcaster::getPoseUC3MObjtrack()
   {
     //TODO: at the beginning, fit the obj_cloud_ to the blob and compute a static offset pose, then call the pose service from the UC3M objecttracker to get the current pose
-      
-
+    icr_msgs::GetObjectPose obj_pose;
+    if (!get_tracked_obj_.call(obj_pose) ) {
+      return false;
+    } 
+    geometry_msgs::PoseStamped detected_pose;
+    //   tf::Transform transform; // transform that is broadcasted
+    detected_pose.pose = obj_pose.response.object.pose;
+    object_pose_.setOrigin(tf::Vector3(detected_pose.pose.position.x,
+				    detected_pose.pose.position.y,
+				    detected_pose.pose.position.z));
+    object_pose_.setRotation(tf::Quaternion(detected_pose.pose.orientation.x,
+					 detected_pose.pose.orientation.y,
+					 detected_pose.pose.orientation.z,
+					 detected_pose.pose.orientation.w ));
     return true;
   }
   //-----------------------------------------------------------------------------------
