@@ -1,7 +1,7 @@
 <package>
   <description brief="libobj is a library to load Wavefront .obj files">
 
-     This is a wrapper around the library obj-1.0, a C++ library to load Wavefront .obj files, written by Ares Lagae. This package uses a slightly modified version published on GitHub: git@github.com:rtkg/obj-1.0.git. For more information check the README in {prefix}/obj-1.0.
+     This is a wrapper around the library obj-1.0, a C++ library to load Wavefront .obj files, written by Ares Lagae. This package uses a slightly modified version. For more information check the README in {prefix}/obj-1.0.
 
   </description>
   <author>Robert Krug</author>

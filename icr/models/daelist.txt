@@ -6,3 +6,4 @@ RedCup_5k.dae
 CokePlasticSmall_5k.dae
 cup_luigi.dae
 duck.dae
+coke_can.dae
