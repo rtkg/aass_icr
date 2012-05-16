@@ -7,3 +7,4 @@ CokePlasticSmall_5k.dae
 cup_luigi.dae
 duck.dae
 coke_can.dae
+sphere_d005.dae

@@ -17,6 +17,17 @@
 #include <pcl/point_types.h>
 #include <string>
 
+
+//FIX
+#include <pcl/io/pcd_io.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/features/fpfh.h>
+#include <pcl/registration/ia_ransac.h>
+
+
 /**
  * @brief Class fitting a point set (in form of Independent Contact Regions) to discrete object models 
  *
@@ -36,6 +47,8 @@ class GraspAffordances
   ros::NodeHandle nh_, nh_private_;
   //ROS runs in threads -> necessary to maintain mutex locks
   boost::mutex lock_;
+
+  pcl::search::KdTree<pcl::PointXYZ>  SearchMethod; //FIX
 
  /**
  * @brief Service for setting an object

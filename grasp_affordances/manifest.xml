@@ -11,9 +11,9 @@
   <depend package="icr_msgs"/>
   <depend package="sensor_msgs"/>
   <depend package="std_srvs"/>
-  <depend package="pcl"/>
-  <depend package="pcl_ros"/>
-  <rosdep name="boost"/>
+  <depend package="pcl_ros"/> 
+  <depend package="pcl"/> 
+  <rosdep name="boost"/> 
 </package>
 
 

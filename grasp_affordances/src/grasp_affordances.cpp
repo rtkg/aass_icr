@@ -2,7 +2,7 @@
 #include <pcl/ros/conversions.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <icr_msgs/ContactRegions.h>
-#include <pcl_ros/point_cloud.h>
+//#include <pcl_ros/point_cloud.h> !FIX
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 
@@ -23,7 +23,7 @@ GraspAffordances::GraspAffordances() : nh_private_("~"), obj_(new   pcl::PointCl
   fetch_icr_srv_ = nh_.advertiseService("fetch_icr",&GraspAffordances::fetchIcr,this);
  
   get_icr_clt_ = nh_.serviceClient<icr_msgs::GetContactRegions>("get_icr");
-  pts_pub_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB> >("output_regions",1);
+  // pts_pub_ = nh_.advertise<pcl::PointCloud<pcl::PointXYZRGB> >("output_regions",1); FIX!
 
 }
 //-------------------------------------------------------------------------------
@@ -33,7 +33,7 @@ bool GraspAffordances::setObject(icr_msgs::SetObject::Request  &req, icr_msgs::S
   lock_.lock();
 
   obj_->clear();
-  pcl::fromROSMsg(req.object.points,*obj_);//Convert the obtained message to PointCloud format
+  //pcl::fromROSMsg(req.object.points,*obj_);//Convert the obtained message to PointCloud format FIX!
   obj_set_=true;
   res.success=true;
 
@@ -63,7 +63,7 @@ bool GraspAffordances::fetchIcr(std_srvs::Empty::Request  &req, std_srvs::Empty:
   pcl::PointCloud<pcl::PointNormal>::Ptr reg(new pcl::PointCloud<pcl::PointNormal>);
   for (unsigned int i=0; i<get_icr.response.contact_regions.regions.size();i++)
     {
-      pcl::fromROSMsg(get_icr.response.contact_regions.regions[i].points,*reg);
+      //  pcl::fromROSMsg(get_icr.response.contact_regions.regions[i].points,*reg); FIX!
       (*input_icr_)+=(*reg);
     }
 
@@ -81,7 +81,7 @@ void GraspAffordances::publish()
     {
       input_icr_->header.stamp=ros::Time(0);
       input_icr_->header.frame_id="/Sprayflask_5k";
-      pts_pub_.publish(*input_icr_);
+      // pts_pub_.publish(*input_icr_); FIX
     }
   lock_.unlock();
 }
@@ -133,7 +133,7 @@ bool GraspAffordances::loadIcr(grasp_affordances::LoadIcr::Request  &req, grasp_
   pcl::PointCloud<pcl::PointNormal>::Ptr reg(new pcl::PointCloud<pcl::PointNormal>);
   for (unsigned int i=0; i<icr->regions.size();i++)
     {
-      pcl::fromROSMsg(icr->regions[i].points,*reg);
+      //  pcl::fromROSMsg(icr->regions[i].points,*reg); FIX
       (*input_icr_)+=(*reg);
     }
 

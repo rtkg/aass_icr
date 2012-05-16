@@ -45,4 +45,9 @@ libicr:
       INCLUDE=`rospack export --lang=cpp --attrib=cflags libobj`
       INCLUDE+=`rospack export --lang=cpp --attrib=cflags libqhull`
       INCLUDE+="-I"`pwd`/tools/eigen-eigen-3.0.2
-      make INCPATH="$INCLUDE"  
+      make INCPATH="$INCLUDE" 
+
+
+
+
+
