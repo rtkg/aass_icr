@@ -31,7 +31,10 @@ ShowerGel_5k:
 =============
 rosservice call /model_server/load_object '{file: "ShowerGel_5k", initial_pose: {position: [0.79, -0.095, 1.089],orientation: [0.6953,0.1301,0.1300,0.6948]}}'
 
-
+cylinder_d006: 
+==============
+rosservice call /model_server/load_object '{file: "cylinder_d006", initial_pose: {position: [0.725, -0.08, 1.103],orientation: [0.0,0.0,0,1]}}'
+rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: 45},{joint_name: ElbowJSwing,joint_target: 40},{joint_name: ShoulderJRotate,joint_target: 4},{joint_name: ShoulderJSwing,joint_target: 50}]}"
 
 
 
