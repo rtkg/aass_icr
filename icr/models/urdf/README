@@ -36,5 +36,51 @@ cylinder_d006:
 rosservice call /model_server/load_object '{file: "cylinder_d006", initial_pose: {position: [0.725, -0.08, 1.103],orientation: [0.0,0.0,0,1]}}'
 rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: 45},{joint_name: ElbowJSwing,joint_target: 40},{joint_name: ShoulderJRotate,joint_target: 4},{joint_name: ShoulderJSwing,joint_target: 50}]}"
 
+sphere_d014: 
+============
+TRIPOD_TOP:
+rosservice call /model_server/load_object '{file: "sphere_d014", initial_pose: {position: [0.7252, -0.055, 1.12],orientation: [0.0,0.0,0,1]}}'
+rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: 45},{joint_name: ElbowJSwing,joint_target: 40},{joint_name: ShoulderJRotate,joint_target: 4},{joint_name: ShoulderJSwing,joint_target: 50}]}"
+
+sphere_d012: 
+============
+TRIPOD_TOP:
+rosservice call /model_server/load_object '{file: "sphere_d012", initial_pose: {position: [0.7252, -0.055, 1.12],orientation: [0.0,0.0,0,1]}}'
+rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: 45},{joint_name: ElbowJSwing,joint_target: 40},{joint_name: ShoulderJRotate,joint_target: 4},{joint_name: ShoulderJSwing,joint_target: 50}]}"
+
+sphere_d010: 
+============
+TRIPOD_TOP:
+rosservice call /model_server/load_object '{file: "sphere_d010", initial_pose: {position: [0.7252, -0.055, 1.12],orientation: [0.0,0.0,0,1]}}'
+rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: 45},{joint_name: ElbowJSwing,joint_target: 40},{joint_name: ShoulderJRotate,joint_target: 4},{joint_name: ShoulderJSwing,joint_target: 50}]}"
+
+sphere_d008: 
+============
+TRIPOD_TOP:
+rosservice call /model_server/load_object '{file: "sphere_d008", initial_pose: {position: [0.75, -0.022, 1.142],orientation: [0.0,0.0,0,1]}}'
+rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: 45},{joint_name: ElbowJSwing,joint_target: 40},{joint_name: ShoulderJRotate,joint_target: 4},{joint_name: ShoulderJSwing,joint_target: 50}]}"
+
+sphere_d006: 
+============
+TRIPOD_TOP:
+rosservice call /model_server/load_object '{file: "sphere_d006", initial_pose: {position: [0.75, -0.03, 1.145],orientation: [0.0,0.0,0,1]}}'
+rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: 45},{joint_name: ElbowJSwing,joint_target: 40},{joint_name: ShoulderJRotate,joint_target: 4},{joint_name: ShoulderJSwing,joint_target: 50}]}"
+
+sphere_d004: 
+============
+TRIPOD_TOP:
+rosservice call /model_server/load_object '{file: "sphere_d004", initial_pose: {position: [0.735, -0.04, 1.146],orientation: [0.0,0.0,0,1]}}'
+rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: 45},{joint_name: ElbowJSwing,joint_target: 40},{joint_name: ShoulderJRotate,joint_target: 4},{joint_name: ShoulderJSwing,joint_target: 50}]}"
+
+sphere_d002: 
+============
+TRIPOD_TOP:
+rosservice call /model_server/load_object '{file: "sphere_d002", initial_pose: {position: [0.735, -0.052, 1.146],orientation: [0.0,0.0,0,1]}}'
+rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: 45},{joint_name: ElbowJSwing,joint_target: 40},{joint_name: ShoulderJRotate,joint_target: 4},{joint_name: ShoulderJSwing,joint_target: 50}]}"
+
+
+
+
+
 
 
