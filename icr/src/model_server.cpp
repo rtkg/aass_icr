@@ -123,6 +123,14 @@ namespace ICR
     //Set the object in the Broadcaster
     pose_brc_->setObject(obj_cloud,obj_name_);
 
+    //if pose should be taken from uc3m_objtracker then call it once here 
+    if(pose_brc_->isPoseSourceUC3M() == true) 
+      {
+	if (!pose_brc_->getPoseUC3MObjtrack()) {
+	  ROS_WARN("uc3m_objtracker failed.");
+	}
+      }
+
     //Update the Object message
     obj_->name=obj_name_;
     pcl::toROSMsg(obj_cloud,obj_->points);
