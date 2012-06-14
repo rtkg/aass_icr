@@ -8,7 +8,7 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <export>
-    <cpp cflags="-I/home/rkg/Data/Coding/icrcpp/include" lflags="-L/home/rkg/Data/Coding/icrcpp/lib -licr"/>
+    <cpp cflags="-I/home/rkg/Data/Coding/icrcpp/include" lflags="-L/home/rkg/Data/Coding/icrcpp/lib -Wl,-rpath,/home/rkg/Data/Coding/icrcpp/lib -licr"/>
   </export>
   <depend package="libobj"/>
   <depend package="libqhull"/>
