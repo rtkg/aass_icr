@@ -14,6 +14,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 
 namespace ICR
 {
@@ -44,11 +45,27 @@ namespace ICR
  */
     void broadcastPose();
 
+    /** @brief True if pose broadcaster is configured to get the pose of an object from uc3m_objtracker
+     */
+    bool isPoseSourceUC3M() {return (strcmp(pose_source_.c_str(),"uc3m_objtrack") == 0);}
+
+/**
+ * @brief Not implemented yet! intended to get the pose from the UC3M objectracker by fitting
+ * PoseBroadcaster::obj_cloud_ to the blob detected by the kinect
+ * @arguments Takes a tf::Transform reference and writes the acquired pose to it
+ */
+    bool getPoseUC3MObjtrack();
+
   private:
 
     ros::NodeHandle nh_, nh_private_;
     boost::mutex lock_;
     tf::TransformBroadcaster tf_brc_;
+
+    /** @brief The pose that is broadcasted in \ref broadcastPose 
+     */
+    tf::Transform object_pose_;
+
 /**
  * @brief Point cloud describing the object geometry
  *
@@ -65,19 +82,17 @@ namespace ICR
  *
  */
     std::string ref_frame_id_;
+    std::string camera_frame_id_;
     ros::ServiceClient gazebo_get_ms_clt_;
+    ros::ServiceClient get_tracked_obj_;
 
+    tf::TransformListener tf_list_;
 /**
  * @brief Gets the pose from a client call to Gazebo's /get_model_state service
  * @arguments Takes a tf::Transform reference and writes the acquired pose to it
  */
-    bool getPoseGazebo(tf::Transform & pose);
-/**
- * @brief Not implemented yet! intended to get the pose from the UC3M objectracker by fitting
- * PoseBroadcaster::obj_cloud_ to the blob detected by the kinect
- * @arguments Takes a tf::Transform reference and writes the acquired pose to it
- */
-    bool getPoseUC3MObjtrack(tf::Transform & pose);
+    bool getPoseGazebo();
+
 
     /////////////////
     //  CALLBACKS  //
