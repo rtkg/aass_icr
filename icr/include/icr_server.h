@@ -85,6 +85,7 @@ class IcrServer
   boost::mutex lock_;
   icr_msgs::ContactRegions::Ptr icr_msg_;
   tf::Transform palm_pose_;
+  double marker_size_;  
 
   ros::ServiceServer get_icr_srv_;
   ros::ServiceServer compute_icr_srv_;
@@ -106,7 +107,9 @@ class IcrServer
   bool cpFromGraspMsg(icr_msgs::Grasp const & c_pts,const std::string & name,Eigen::Vector3d & contact_position,bool & touching)const;
   void initPtGrasp();  
   bool cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pcl::PointXYZRGBNormal> & cloud, std::vector<unsigned int> & point_ids);
-  
+  void computeAdjacencyMatrix(std::vector<unsigned int> const & point_ids, Eigen::MatrixXd & adj_mtrx)const;  
+  void floydWarshall(Eigen::MatrixXd & dist)const;
+
   /////////////////
   //  CALLBACKS  //
   /////////////////
