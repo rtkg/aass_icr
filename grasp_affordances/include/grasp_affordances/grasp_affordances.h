@@ -7,6 +7,9 @@
 #ifndef grasp_affordances_h___
 #define grasp_affordances_h___
 
+#include "grasp_affordances/featurecloud.h"
+#include "grasp_affordances/template_alignment.h"
+
 #include "ros/ros.h"
 #include <boost/thread/mutex.hpp>
 #include <icr_msgs/SetObject.h>
@@ -16,17 +19,6 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <string>
-
-
-//FIX
-#include <pcl/io/pcd_io.h>
-#include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/features/fpfh.h>
-#include <pcl/registration/ia_ransac.h>
-
 
 /**
  * @brief Class fitting a point set (in form of Independent Contact Regions) to discrete object models 
@@ -47,8 +39,6 @@ class GraspAffordances
   ros::NodeHandle nh_, nh_private_;
   //ROS runs in threads -> necessary to maintain mutex locks
   boost::mutex lock_;
-
-  pcl::search::KdTree<pcl::PointXYZ>  SearchMethod; //FIX
 
  /**
  * @brief Service for setting an object
@@ -80,6 +70,7 @@ class GraspAffordances
  *
  */
   ros::Publisher     pts_pub_;
+  ros::Publisher     trans_pub_;
 
  /**
  * @brief boost::shared_ptr to the object point cloud
@@ -92,8 +83,15 @@ class GraspAffordances
  */
   pcl::PointCloud<pcl::PointNormal>::Ptr input_icr_;
 
-  bool obj_set_;
+  pcl::PointCloud<pcl::PointXYZ> transformed_cloud;
+
+  bool obj_set_;  
   bool icr_set_;
+
+  FeatureCloud target_obj;
+  FeatureCloud template_cloud;
+  TemplateAlignment template_align;
+
  /**
  * @brief string holding the path to the ICR database directory - loaded from the parameter server
  * in the constructor of GraspAffordances::GraspAffordances()
