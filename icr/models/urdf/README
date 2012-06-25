@@ -4,13 +4,13 @@ Sprayflask_5k:
 ==============
 rosservice call /model_server/load_object '{file: "Sprayflask_5k", initial_pose: {position: [0.7, -0.05, 1.15],orientation: [0.2888,0.6454,0.6454,0.2888]}}' rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: -45},{joint_name: ElbowJSwing,joint_target: 60},{joint_name: ShoulderJRotate,joint_target: 0},{joint_name: ShoulderJSwing,joint_target: 30}]}"
 
-CokePlasticSmall_5k: 
+CokePlasticSmall: 
 ====================
 SIDE_GRASP: 
-rosservice call /model_server/load_object '{file: "CokePlasticSmall_5k", initial_pose: {position: [0.69, -0.07, 1.14],orientation: [0.2888,0.6454,0.6454,0.2888]}}'
+rosservice call /model_server/load_object '{file: "CokePlasticSmall", initial_pose: {position: [0.69, -0.07, 1.14],orientation: [0.2888,0.6454,0.6454,0.2888]}}'
 rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: -45},{joint_name: ElbowJSwing,joint_target: 60},{joint_name: ShoulderJRotate,joint_target: 0},{joint_name: ShoulderJSwing,joint_target: 30}]}"
 TOP_GRASP:
-rosservice call /model_server/load_object '{file: "CokePlasticSmall_5k", initial_pose: {position: [0.82, -0.055, 1.14],orientation: [0.2888,0.6454,0.6454,0.2888]}}'
+rosservice call /model_server/load_object '{file: "CokePlasticSmall", initial_pose: {position: [0.82, -0.055, 1.14],orientation: [0.2888,0.6454,0.6454,0.2888]}}'
 rostopic pub /sr_arm/sendupdate sr_robot_msgs/sendupdate "{sendupdate_length: 4 ,sendupdate_list: [{joint_name: ElbowJRotate,joint_target: 42},{joint_name: ElbowJSwing,joint_target: 32},{joint_name: ShoulderJRotate,joint_target: 3},{joint_name: ShoulderJSwing,joint_target: 63}]}"
 
 cup_luigi: 

@@ -1,9 +1,9 @@
 Tortoise_5k.dae
 beer_can.dae
-Sprayflask_5k.dae
+Sprayflask.dae
 ShowerGel_5k.dae
 RedCup_5k.dae
-CokePlasticSmall_5k.dae
+CokePlasticSmall.dae
 cup_luigi.dae
 duck.dae
 coke_can.dae
@@ -23,3 +23,10 @@ sphere_d010.dae
 sphere_d012.dae
 sphere_d014.dae
 sphere_d016.dae
+pencil.dae
+toshos_toy_horse.dae
+toshos_toy_tower.dae
+Wineglass.dae
+model_cup_luigi_surfaceOnly.dae
+parallelepiped_2x6x15.dae
+cylinder_4x15.dae
