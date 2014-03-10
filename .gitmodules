@@ -1,0 +1,3 @@
+[submodule "libicr/icrcpp"]
+	path = libicr/icrcpp
+	url = https://github.com/rtkg/icrcpp

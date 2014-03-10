@@ -4,7 +4,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <algorithm>
 #include <Eigen/Core>
-#include "rosbag/bag.h"
+#include <rosbag/bag.h>
 #include <visualization_msgs/MarkerArray.h>
 
 namespace ICR
@@ -610,28 +610,28 @@ namespace ICR
   {
     res.success=false;
 
-    if(req.file.empty())
-      {
-	ROS_ERROR("Given file name is invalid - cannot save ICR");
-	return res.success;
-      }
+    // if(req.file.empty())
+    //   {
+    // 	ROS_ERROR("Given file name is invalid - cannot save ICR");
+    // 	return res.success;
+    //   }
 
-    lock_.lock();
-    if(!icr_computed_)
-      {
-	ROS_ERROR("No ICR computed - cannot save");
-	lock_.unlock();
-	return res.success;
-      }
+    // lock_.lock();
+    // if(!icr_computed_)
+    //   {
+    // 	ROS_ERROR("No ICR computed - cannot save");
+    // 	lock_.unlock();
+    // 	return res.success;
+    //   }
 
-    rosbag::Bag bag(icr_database_dir_+ req.file + ".bag", rosbag::bagmode::Write);
-    bag.write("contact_regions", icr_msg_->header.stamp, *icr_msg_);
+    // rosbag::Bag bag(icr_database_dir_+ req.file + ".bag", rosbag::bagmode::Write);
+    // bag.write("contact_regions", icr_msg_->header.stamp, *icr_msg_);
 
-    lock_.unlock();
-    bag.close();
-    res.success=true;
+    // lock_.unlock();
+    // bag.close();
+    // res.success=true;
 
-    ROS_INFO("saved ICR to: %s",(icr_database_dir_+ req.file + ".bag").c_str());
+    // ROS_INFO("saved ICR to: %s",(icr_database_dir_+ req.file + ".bag").c_str());
     return res.success;
   }
   //--------------------------------------------------------------------------------------------

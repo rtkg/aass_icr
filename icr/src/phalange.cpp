@@ -2,7 +2,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <tf_conversions/tf_eigen.h>
 #include <Eigen/Core>
-
+#include <tf/LinearMath/Matrix3x3.h>
 namespace ICR
 {
 
@@ -108,10 +108,10 @@ tf::Quaternion Phalange::projectPose(tf::Vector3 const & z)
 
   //The transposed rotation matrix containing the basis of the new contact frame expressed in the
   //reference contact frame. It is transposed since btMatrix3x3 only allows row-wise access
-  btMatrix3x3 Cref_R_C;
+  tf::Matrix3x3 Cref_R_C;
 
   //Express z (given in the link frame) in the contact reference frame
-  tf::VectorTFToEigen(L_T_Cref_.inverse()*z,z_Cref); 
+  tf::vectorTFToEigen(L_T_Cref_.inverse()*z,z_Cref); 
   z_Cref.normalize();//Assert unit normal
 
   //Generate the matrix I-n*n^T for projecting on the nullspace of the new z-axis. The nullspace
@@ -120,9 +120,9 @@ tf::Quaternion Phalange::projectPose(tf::Vector3 const & z)
   
   //Project the x & y axis of the contact reference frame - this is unstable if one of these axis is
   //(nearly) orthogonal to the nullspace - there should be some check on the norm of the projections ...
-  tf::VectorEigenToTF((P*Eigen::Vector3d(1,0,0)).normalized(),Cref_R_C[0]);
-  tf::VectorEigenToTF((P*Eigen::Vector3d(0,1,0)).normalized(),Cref_R_C[1]);
-  tf::VectorEigenToTF(z_Cref,Cref_R_C[2]);
+  tf::vectorEigenToTF((P*Eigen::Vector3d(1,0,0)).normalized(),Cref_R_C[0]);
+  tf::vectorEigenToTF((P*Eigen::Vector3d(0,1,0)).normalized(),Cref_R_C[1]);
+  tf::vectorEigenToTF(z_Cref,Cref_R_C[2]);
     
   //Transformation from the new contact frame to the reference frame
   tf::Transform Cref_T_C(Cref_R_C.transpose(),tf::Vector3(0,0,0));
