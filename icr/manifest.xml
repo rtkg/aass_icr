@@ -18,6 +18,7 @@
   <depend package="tf_conversions"/>
   <depend package="pcl_ros"/>
   <depend package="pcl"/>
+  <depend package="libicr"/>
   <depend package="visualization_msgs"/>
 
  <rosdep name="eigen" />
