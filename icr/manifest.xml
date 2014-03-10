@@ -20,8 +20,7 @@
   <depend package="pcl"/>
   <depend package="libicr"/>
   <depend package="visualization_msgs"/>
-
- <rosdep name="eigen" />
+  <depend package="eigen" />
 </package>
 
 

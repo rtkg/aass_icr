@@ -28,10 +28,6 @@ ENDIF(DEFINED debug_mode)
 #uncomment if you have defined services
 #rosbuild_gensrv()
 
-find_package(Eigen REQUIRED)
-include_directories(${EIGEN_INCLUDE_DIRS})
-add_definitions(${EIGEN_DEFINITIONS})
-
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
 #target_link_libraries(${PROJECT_NAME} another_library)
@@ -42,12 +38,6 @@ add_definitions(${EIGEN_DEFINITIONS})
 rosbuild_add_executable(icr_server src/icr_server.cpp src/icr_server_node.cpp)
 rosbuild_add_executable(model_server src/model_server.cpp src/model_server_node.cpp src/pose_broadcaster.cpp)
 rosbuild_add_executable(grasp_server src/grasp_server.cpp src/grasp_server_node.cpp src/phalange.cpp)
-
-#TERRIBLE WAY TO GET THE ICRCPP LIBRARY INTO THE GRASPIT PLUGIN - SHOULD BE DONE VIA EXPORTING FLAGS FROM A WRAPPER PACKAGE
-include_directories(/home/rkg/Data/Coding/icrcpp/tools/Qhull-2011.2/src/libqhullcpp /home/rkg/Data/Coding/icrcpp/tools/Qhull-2011.2/src /home/rkg/Data/Coding/icrcpp/tools/obj-1.0/obj  /home/rkg/Data/Coding/icrcpp/tools/eigen-eigen-3.0.2 /home/rkg/Data/Coding/icrcpp/include)
-target_link_libraries(icr_server /home/rkg/Data/Coding/icrcpp/tools/obj-1.0/obj/.libs/libobj.a /home/rkg/Data/Coding/icrcpp/lib/libicr.a /home/rkg/Data/Coding/icrcpp/tools/Qhull-2011.2/lib/libqhullcpp.a /home/rkg/Data/Coding/icrcpp/tools/Qhull-2011.2/lib/libqhull6.so)
-target_link_libraries(model_server /home/rkg/Data/Coding/icrcpp/tools/obj-1.0/obj/.libs/libobj.a /home/rkg/Data/Coding/icrcpp/lib/libicr.a /home/rkg/Data/Coding/icrcpp/tools/Qhull-2011.2/lib/libqhullcpp.a /home/rkg/Data/Coding/icrcpp/tools/Qhull-2011.2/lib/libqhull6.so)
-target_link_libraries(grasp_server /home/rkg/Data/Coding/icrcpp/tools/obj-1.0/obj/.libs/libobj.a /home/rkg/Data/Coding/icrcpp/lib/libicr.a /home/rkg/Data/Coding/icrcpp/tools/Qhull-2011.2/lib/libqhullcpp.a /home/rkg/Data/Coding/icrcpp/tools/Qhull-2011.2/lib/libqhull6.so)
 
 #rosbuild_add_executable(icr_client src/icr_client.cpp)
 #rosbuild_add_executable(finger_tip_publisher_node src/finger_tip_publisher_node.cpp)
