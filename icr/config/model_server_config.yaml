@@ -1,4 +1,4 @@
-reference_frame_id: "/fixed"
+reference_frame_id: "/world"
 camera_frame_id: "/camera_rgb_frame"
 gazebo_prefix: "/gazebo" 
 uc3m_objtrack_prefix: "/oru_hdb" 
