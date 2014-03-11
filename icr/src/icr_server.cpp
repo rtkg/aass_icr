@@ -102,7 +102,9 @@ namespace ICR
       }
 
     sz_.reset(new SearchZones(pt_grasp_));
-    sz_->computeShiftedSearchZones(qs_);
+    //A spherical taks wrench space with radius qs_*GWS_Insphere_radius is used here ...
+    sz_->setTaskWrenchSpace(WrenchSpacePtr(new SphericalWrenchSpace(6,qs_*pt_grasp_->getGWS()->getOcInsphereRadius())));
+    sz_->computeShiftedSearchZones();
     sz_computed_=true;
     lock_.unlock();
   }
@@ -130,7 +132,7 @@ namespace ICR
   
     //this could possibly done more efficiently with the setSearchZones and setGrasp methods
     icr_.reset(new IndependentContactRegions(sz_,pt_grasp_));
-    icr_->computeICR();
+    icr_->computeICR(BFS);
 
   //update the icr msg
     icr_msg_->regions.clear();
@@ -709,7 +711,9 @@ namespace ICR
       }
 
     sz_.reset(new SearchZones(pt_grasp_));
-    sz_->computeShiftedSearchZones(qs_);
+    //A spherical task wrench space is used here ...
+    sz_->setTaskWrenchSpace(WrenchSpacePtr(new SphericalWrenchSpace(6,qs_*pt_grasp_->getGWS()->getOcInsphereRadius())));
+    sz_->computeShiftedSearchZones();
     sz_computed_=true;
     lock_.unlock();
     ROS_INFO("Computed search zones");
