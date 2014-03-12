@@ -98,6 +98,7 @@ class IcrServer
   ros::ServiceServer save_icr_srv_;
   ros::Subscriber ct_pts_sub_;
   ros::Publisher icr_cloud_pub_;
+  ros::Publisher sp_pub_;
   ros::Publisher icr_pub_;
 
   uint findObjectPointId(Eigen::Vector3d* point_in) const; 

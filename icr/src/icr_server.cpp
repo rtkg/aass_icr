@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <Eigen/Core>
 #include <rosbag/bag.h>
-#include <visualization_msgs/MarkerArray.h>
 
 namespace ICR
 {
@@ -76,8 +75,9 @@ namespace ICR
     set_active_phl_srv_ = nh_.advertiseService("set_active_phalanges",&IcrServer::setActivePhalanges,this);
     set_phl_param_srv_ = nh_.advertiseService("set_phalange_parameters",&IcrServer::setPhalangeParameters,this);
     ct_pts_sub_ = nh_.subscribe("grasp",1, &IcrServer::graspCallback,this);
-    icr_cloud_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("icr_cloud",5);
+    icr_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("icr_cloud",5);
     icr_pub_ = nh_.advertise<icr_msgs::ContactRegions>("contact_regions",5);
+    sp_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("seed_points",5);
   }
   //------------------------------------------------------------------------
   void IcrServer::computeSearchZones()
@@ -142,7 +142,7 @@ namespace ICR
     std::vector<unsigned int> point_ids;
     Eigen::MatrixXd dist;
     int mp_id;
-
+  icr_msg_->header.stamp=ros::Time::now();
     icr_msg_->header.frame_id=obj_frame_id_;
     for (unsigned int i=0; i < icr_->getNumContactRegions(); i++)
       {
@@ -186,62 +186,19 @@ namespace ICR
 	lock_.unlock();
 	return;
       }
-
     
-    visualization_msgs::MarkerArray icr_markers;
-    pcl::PointCloud<pcl::PointXYZRGBNormal> region_cloud; 
-    geometry_msgs::Point p;   
-
+    pcl::PointCloud<pcl::PointXYZRGBNormal> icr_cloud;  
+    pcl::PointCloud<pcl::PointXYZRGBNormal> region_cloud;
     for (unsigned int i=0; i < icr_msg_->regions.size(); i++)
       {
 	pcl::fromROSMsg(icr_msg_->regions[i].points,region_cloud);
-        visualization_msgs::Marker marker;
-        marker.type = visualization_msgs::Marker::SPHERE_LIST;
-        marker.action = visualization_msgs::Marker::ADD;
-        marker.header.frame_id=obj_frame_id_;
-        marker.header.stamp=ros::Time();
-        marker.id = i;
-	marker.scale.x = marker_size_;
-	marker.scale.y = marker_size_;
-	marker.scale.z = marker_size_;
-	marker.color.a = 1;
-  	marker.color.r = region_cloud[0].r/255.0;
-	marker.color.g = region_cloud[0].g/255.0;
-	marker.color.b = region_cloud[0].b/255.0;
-
- 
-        for (unsigned int j=0; j < region_cloud.size(); j++)
-	  {
-	    p.x=region_cloud[j].x;
-	    p.y=region_cloud[j].y;
-	    p.z=region_cloud[j].z;
-	    marker.points.push_back(p);
-          }
-	icr_markers.markers.push_back(marker);
-
-	//Marker for the middle point
-        marker.points.clear();
-        marker.type = visualization_msgs::Marker::SPHERE;
-        marker.scale.x*=1.5;
-        marker.scale.y*=1.5;
-        marker.scale.z*=1.5;
-        marker.id = i+icr_msg_->regions.size();
-       	marker.color.r = 1.0;
-	marker.color.g = 0.0;
-	marker.color.b = 0.0;
-	marker.pose.position.x = icr_msg_->regions[i].middle_point.x;
-	marker.pose.position.y = icr_msg_->regions[i].middle_point.y;
-	marker.pose.position.z = icr_msg_->regions[i].middle_point.z;
-	marker.pose.orientation.x = 0.0;
-	marker.pose.orientation.y = 0.0;
-	marker.pose.orientation.z = 0.0;
-	marker.pose.orientation.w = 1.0;
-
-        icr_markers.markers.push_back(marker);
+        icr_cloud+=region_cloud;
       }
-   
 
-    icr_cloud_pub_.publish(icr_markers);
+    icr_cloud.header.frame_id=icr_msg_->header.frame_id;
+    icr_cloud.header.stamp=icr_msg_->header.stamp;
+
+    icr_cloud_pub_.publish(icr_cloud);
     icr_pub_.publish(*icr_msg_);
     lock_.unlock();
   }
@@ -465,11 +422,9 @@ namespace ICR
       }
 
     tf::poseMsgToTF(grasp.palm_pose,palm_pose_);//memorize the pose of the palm
-    
-  
-    // struct timeval start, end;
-    // double c_time=0;
-  
+
+      pcl::PointCloud<pcl::PointXYZRGB> seed_points; 
+	pcl::PointXYZRGB pt; 	pt.r=255.0; pt.g=0.0; pt.b=0.0;
     bool all_phl_touching=true; //not used right now
     bool phl_touching;
     Eigen::Vector3d contact_position;
@@ -488,11 +443,24 @@ namespace ICR
    
 	//gettimeofday(&start,0);
 	centerpoint_ids(i)=findObjectPointId(&contact_position);
-	// gettimeofday(&end,0);
-	// c_time += end.tv_sec - start.tv_sec + 0.000001 * (end.tv_usec - start.tv_usec);
+
+    pt.x=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(0); 
+        pt.y=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(1); 
+        pt.z=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(2); 
+
+	seed_points.points.push_back(pt);
+
+   // p.x=contact_position(0);
+   // p.y=contact_position(1);
+   // p.z=contact_position(2);
+	//	seed_points.points.push_back(pt);
       }
-    //std::cout<<"Computation time: "<<c_time<<" s"<<std::endl;  
-    //  std::cout<<"all ph:"<<all_phl_touching<<std::endl;
+
+    seed_points.header.stamp=grasp.header.stamp;
+    seed_points.header.frame_id=grasp.header.frame_id;
+
+    sp_pub_.publish(seed_points);
+
     pt_grasp_->setCenterPointIds(centerpoint_ids); //this computes the Grasp Wrench Space
     gws_computed_=true;
 
