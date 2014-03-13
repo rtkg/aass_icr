@@ -1,2 +1,3 @@
-Sprayflask.dae
-
+Sprayflask_5k.dae
+CokePlasticSmall_5k.dae
+RedCup_5k.dae

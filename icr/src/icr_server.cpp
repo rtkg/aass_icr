@@ -5,18 +5,23 @@
 #include <algorithm>
 #include <Eigen/Core>
 #include <rosbag/bag.h>
+#include <eigen_conversions/eigen_msg.h>
 
 namespace ICR
 {
   //-------------------------------------------------------------------------
   IcrServer::IcrServer() : nh_private_("~"), obj_set_(false), pt_grasp_initialized_(false), gws_computed_(false),
 			   sz_computed_(false), icr_computed_(false), computation_mode_(MODE_CONTINUOUS), 
-			   qs_(0.5),obj_frame_id_("/default"), icr_msg_(new icr_msgs::ContactRegions), marker_size_(0.003)
+			   qs_(1e-10),computation_frame_id_("/default"), icr_msg_(new icr_msgs::ContactRegions), marker_size_(0.003), 
+                           compute_in_palm_frame_(false), O_F_T_(Eigen::Affine3d::Identity())
   {
     std::string searched_param;
 
     nh_private_.searchParam("icr_database_directory", searched_param);
     nh_private_.getParam(searched_param, icr_database_dir_);
+
+    nh_private_.searchParam("compute_in_palm_frame", searched_param);
+    nh_private_.getParam(searched_param, compute_in_palm_frame_);
 
     nh_private_.searchParam("marker_size", searched_param);
     nh_private_.getParam(searched_param, marker_size_);
@@ -54,8 +59,6 @@ namespace ICR
 	    for (int32_t j = 0; j < phalange_config_[i]["display_color"].size() ;j++) 
 	      ROS_ASSERT(phalange_config_[i]["display_color"][j].getType() == XmlRpc::XmlRpcValue::TypeDouble);
 
-  
-
 	    active_phalanges_.push_back((std::string)phalange_config_[i]["phl_name"]);//by default, all phalanges are considered in the icr computation
 	  }
       }
@@ -68,16 +71,17 @@ namespace ICR
     get_icr_srv_ = nh_.advertiseService("get_icr",&IcrServer::getIcr,this); 
     compute_sz_srv_ = nh_.advertiseService("compute_search_zones",&IcrServer::triggerSearchZonesCmp,this); 
     compute_icr_srv_ = nh_.advertiseService("compute_icr",&IcrServer::triggerIcrCmp,this); 
-    toggle_mode_srv_ = nh_.advertiseService("toggle_mode",&IcrServer::toggleMode,this); 
+    set_mode_srv_ = nh_.advertiseService("set_computation_mode",&IcrServer::setComputationMode,this); 
     save_icr_srv_ = nh_.advertiseService("save_icr",&IcrServer::saveIcr,this); 
     set_obj_srv_ = nh_.advertiseService("set_object",&IcrServer::setObject,this);
     set_qs_srv_ = nh_.advertiseService("set_spherical_q",&IcrServer::setSphericalQuality,this);
     set_active_phl_srv_ = nh_.advertiseService("set_active_phalanges",&IcrServer::setActivePhalanges,this);
     set_phl_param_srv_ = nh_.advertiseService("set_phalange_parameters",&IcrServer::setPhalangeParameters,this);
     ct_pts_sub_ = nh_.subscribe("grasp",1, &IcrServer::graspCallback,this);
-    icr_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("icr_cloud",5);
-    icr_pub_ = nh_.advertise<icr_msgs::ContactRegions>("contact_regions",5);
-    sp_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("seed_points",5);
+    icr_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("icr_cloud",1);
+    icr_pub_ = nh_.advertise<icr_msgs::ContactRegions>("contact_regions",1);
+    sp_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("seed_points",1);
+    //dummy_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("dummy_obj",1);
   }
   //------------------------------------------------------------------------
   void IcrServer::computeSearchZones()
@@ -112,7 +116,6 @@ namespace ICR
   void IcrServer::computeIcr()
   {
     lock_.lock();
-
     icr_computed_=false;
 
     //need to check if the OWS list and the Patch list contained in the grasp are computed
@@ -132,18 +135,39 @@ namespace ICR
   
     //this could possibly done more efficiently with the setSearchZones and setGrasp methods
     icr_.reset(new IndependentContactRegions(sz_,pt_grasp_));
-    icr_->computeICR(BFS);
+    icr_->computeICR(Full);
 
-  //update the icr msg
+    /////////////////////////////DEBUG ///////////////////////////////////////////////
+    //Sometimes the icr computation glitches and sets all points on the objec as icr points - it
+    //seems that creating a new prototype grasp and search zones here solves the problem, but it shouldn't happen ...
+    if(icr_->getNumICRPoints() > obj_->getNumCp())
+      {
+	icr_->getGrasp()->getParentObj()->writeToFile("/home/rkg/Desktop/debug/points.txt","/home/rkg/Desktop/debug/normals.txt","/home/rkg/Desktop/debug/neighbors.txt");
+        pt_grasp_->getGWS()->writeToFile("/home/rkg/Desktop/debug/hyperplanes.txt");
+        icr_->getGrasp()->getFinger(0)->getOWS()->writeToFile("/home/rkg/Desktop/debug/wrenches.txt"); //assuming that all fingers share the same OWS!!!
+
+	std::cout<<"G: ";
+	for (unsigned int i=0; i < icr_->getNumContactRegions(); i++)
+	  std::cout<< pt_grasp_->getFinger(i)->getCenterPointPatch()->patch_ids_.front()<<" ";
+	std::cout<<std::endl;
+
+        ROS_WARN("Icr computation glitched - overall number of points: %d, Spherical TWS radius: %f",icr_->getNumICRPoints(),dynamic_cast<SphericalWrenchSpace*>(sz_->getTaskWrenchSpace().get())->getRadius());
+        lock_.unlock();
+	return;
+        
+      }
+    //////////////////////////////DEBUG END///////////////////////////////////////////////
+
+    //update the icr msg
     icr_msg_->regions.clear();
-
     pcl::PointCloud<pcl::PointXYZRGBNormal> region_cloud;
     icr_msgs::ContactRegion region_msg;
     std::vector<unsigned int> point_ids;
     Eigen::MatrixXd dist;
     int mp_id;
-  icr_msg_->header.stamp=ros::Time::now();
-    icr_msg_->header.frame_id=obj_frame_id_;
+    icr_msg_->header.stamp=ros::Time::now();
+    icr_msg_->header.frame_id=computation_frame_id_;
+
     for (unsigned int i=0; i < icr_->getNumContactRegions(); i++)
       {
 	if(!cloudFromContactRegion(i,region_cloud,point_ids))//convert region i to a point cloud
@@ -152,12 +176,10 @@ namespace ICR
 	    lock_.unlock();
 	    return;
 	  }
-
 	//compute the middle point
 	computeAdjacencyMatrix(point_ids,dist);
-        floydWarshall(dist);        
+        floydWarshall(dist);      
         dist.colwise().sum().minCoeff(&mp_id);  
-
         region_msg.mp_index=point_ids[mp_id];
         region_msg.middle_point.x= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(0);
         region_msg.middle_point.y= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(1);
@@ -166,12 +188,9 @@ namespace ICR
 	pcl::toROSMsg(region_cloud,region_msg.points); 
 	region_msg.indices=point_ids;
 	icr_msg_->regions.push_back(region_msg);
-
       } 
     icr_msg_->parent_obj=icr_->getGrasp()->getParentObj()->getName();
-    tf::poseTFToMsg (palm_pose_,icr_msg_->palm_pose);
-    icr_msg_->header.stamp=ros::Time::now();
-
+    tf::poseEigenToMsg(O_F_T_,icr_msg_->palm_pose);
     icr_computed_=true;
 
     lock_.unlock();
@@ -189,14 +208,13 @@ namespace ICR
     
     pcl::PointCloud<pcl::PointXYZRGBNormal> icr_cloud;  
     pcl::PointCloud<pcl::PointXYZRGBNormal> region_cloud;
+    icr_cloud.header.frame_id=icr_msg_->header.frame_id;
+    icr_cloud.header.stamp=icr_msg_->header.stamp;
     for (unsigned int i=0; i < icr_msg_->regions.size(); i++)
       {
 	pcl::fromROSMsg(icr_msg_->regions[i].points,region_cloud);
         icr_cloud+=region_cloud;
       }
-
-    icr_cloud.header.frame_id=icr_msg_->header.frame_id;
-    icr_cloud.header.stamp=icr_msg_->header.stamp;
 
     icr_cloud_pub_.publish(icr_cloud);
     icr_pub_.publish(*icr_msg_);
@@ -205,7 +223,7 @@ namespace ICR
   //-------------------------------------------------------------------------
   bool IcrServer::cloudFromContactRegion(unsigned int region_id,pcl::PointCloud<pcl::PointXYZRGBNormal> & cloud, std::vector<unsigned int> & point_ids)
   {
-     int phl_id = getPhalangeId(icr_->getGrasp()->getFinger(region_id)->getName());
+    int phl_id = getPhalangeId(icr_->getGrasp()->getFinger(region_id)->getName());
     if(phl_id == -1)
       {
 	ROS_ERROR("Cannot extract color associated with the phalange - cannot convert ContactRegion to pcl::PointCloud");
@@ -235,11 +253,10 @@ namespace ICR
 	cloud.points.push_back(pt);
       }
       
-    cloud.header.frame_id = obj_frame_id_;
+    cloud.header.frame_id = computation_frame_id_;
     cloud.width=cloud.points.size();
     cloud.height = 1;
     cloud.is_dense=true;
-
     return true;
   }
   //-------------------------------------------------------------------------
@@ -347,13 +364,15 @@ namespace ICR
   	std::copy(req.object.neighbors[i].indices.begin(),req.object.neighbors[i].indices.end(),neighbors.begin());     
 	obj_->addContactPoint(ContactPoint(Eigen::Vector3d(obj_cloud[i].x,obj_cloud[i].y,obj_cloud[i].z),Eigen::Vector3d(obj_cloud[i].normal[0],obj_cloud[i].normal[1],obj_cloud[i].normal[2]),neighbors,i));
       }
-
+    obj_->computeCentroid();
     obj_set_=true;
 
     //Loading a new object requires recomputing the OWS list and the Patch list which is done by creating a new grasp an initializing it
     initPtGrasp();
 
-    obj_frame_id_=obj_cloud.header.frame_id;
+    computation_frame_id_=obj_cloud.header.frame_id; 
+    //reset the object transform - actual transformation is done in the GraspCallback
+    O_F_T_.setIdentity();
 
     lock_.unlock();
     res.success=true;
@@ -387,7 +406,6 @@ namespace ICR
   
     pt_grasp_initialized_=true;
     gws_computed_=false;
-  
   }
   //------------------------------------------------------------------------
   bool IcrServer::setSphericalQuality(icr_msgs::SetSphericalQuality::Request  &req, icr_msgs::SetSphericalQuality::Response &res)
@@ -414,17 +432,14 @@ namespace ICR
   {
     lock_.lock();
     gws_computed_=false;
-
     if(!obj_set_ || !pt_grasp_initialized_) //do nothing if no object is loaded or the grasp is not initialized
       {
 	lock_.unlock();
 	return;
       }
 
-    tf::poseMsgToTF(grasp.palm_pose,palm_pose_);//memorize the pose of the palm
-
-      pcl::PointCloud<pcl::PointXYZRGB> seed_points; 
-	pcl::PointXYZRGB pt; 	pt.r=255.0; pt.g=0.0; pt.b=0.0;
+    pcl::PointCloud<pcl::PointXYZRGB> seed_points; 
+    pcl::PointXYZRGB pt;  pt.r=255.0; pt.g=0.0; pt.b=0.0;
     bool all_phl_touching=true; //not used right now
     bool phl_touching;
     Eigen::Vector3d contact_position;
@@ -441,27 +456,63 @@ namespace ICR
 	if(!phl_touching)
 	  all_phl_touching=false;   
    
-	//gettimeofday(&start,0);
+	if(compute_in_palm_frame_)
+	  contact_position=O_F_T_.inverse()*contact_position;//transform the  contact position into the previous palm frame F before trying to find the closest points
+
 	centerpoint_ids(i)=findObjectPointId(&contact_position);
-
-    pt.x=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(0); 
-        pt.y=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(1); 
-        pt.z=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(2); 
-
+	  
+	pt.x=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(0); 
+	pt.y=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(1); 
+	pt.z=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(2); 
 	seed_points.points.push_back(pt);
 
-   // p.x=contact_position(0);
-   // p.y=contact_position(1);
-   // p.z=contact_position(2);
-	//	seed_points.points.push_back(pt);
+	// visualize the target contact locations on the fingers also ...
+	// pt.x=contact_position(0);
+	// pt.y=contact_position(1);
+	// pt.z=contact_position(2);
+	// seed_points.points.push_back(pt);
       }
+ 
+    Eigen::Affine3d O_C_T; //get the current pose of the palm frame expressed in the object frame
+    tf::poseMsgToEigen(grasp.palm_pose,O_C_T);
+    // pcl::PointCloud<pcl::PointXYZ> dummy_obj;
+    // pcl::PointXYZ dummy_pt;
+    //Compute the grasp wrench space either in the object frame or transform the object into the palm frame and re-initialize the grasp (computing new OWS & GWS)
+    if(compute_in_palm_frame_)
+      {
+	Eigen::Affine3d C_F_T = O_C_T.inverse()*O_F_T_; //compute the pose of the former palm frame expressed in the current palm frame;
+        obj_->transform(C_F_T); //Express object vertices/vertex normals (which are currently expressed in F_O_T) in the current palm frame 
+	// for(uint n=0;n<obj_->getNumCp();n++)
+	//   {
+	//     dummy_pt.x=(*obj_->getContactPoint(n)->getVertex())(0);
+	//     dummy_pt.y=(*obj_->getContactPoint(n)->getVertex())(1);
+	//     dummy_pt.z=(*obj_->getContactPoint(n)->getVertex())(2);
+	// dummy_obj.points.push_back(dummy_pt);
+        //   }
+	std::cout<<"transforming obj..."<<std::endl;
+        FParamList phl_param;
+        getActivePhalangeParameters(phl_param);
+        pt_grasp_.reset(new Grasp); //necessary in order to re-compute the OWS
+        pt_grasp_->init(phl_param,obj_,centerpoint_ids);
+	pt_grasp_initialized_=true;	
 
+	computation_frame_id_=grasp.palm_frame_id;
+      }
+    else
+      pt_grasp_->setCenterPointIds(centerpoint_ids); //this only re-computes the Grasp Wrench Space, not the OWS 
+
+    // dummy_obj.header.frame_id=computation_frame_id_;
+    // dummy_obj.header.stamp=ros::Time::now();
+    // dummy_pub_.publish(dummy_obj);
+
+
+    //memorize the current grasp pose for the next iteration
+    O_F_T_=O_C_T; 
+    
+    seed_points.header.frame_id=computation_frame_id_;
     seed_points.header.stamp=grasp.header.stamp;
-    seed_points.header.frame_id=grasp.header.frame_id;
-
     sp_pub_.publish(seed_points);
 
-    pt_grasp_->setCenterPointIds(centerpoint_ids); //this computes the Grasp Wrench Space
     gws_computed_=true;
 
     //EXPERIMENTAL!!!!!!!!!!!!!!!!!!!! just check if its feasible to stop computatin once all fingers are in touch (e.g. for saving icr)
@@ -580,55 +631,63 @@ namespace ICR
   {
     res.success=false;
 
-    // if(req.file.empty())
-    //   {
-    // 	ROS_ERROR("Given file name is invalid - cannot save ICR");
-    // 	return res.success;
-    //   }
+    if(req.file.empty())
+      {
+    	ROS_ERROR("Given file name is invalid - cannot save ICR");
+    	return res.success;
+      }
 
-    // lock_.lock();
-    // if(!icr_computed_)
-    //   {
-    // 	ROS_ERROR("No ICR computed - cannot save");
-    // 	lock_.unlock();
-    // 	return res.success;
-    //   }
+    lock_.lock();
+    if(!icr_computed_)
+      {
+    	ROS_ERROR("No ICR computed - cannot save");
+    	lock_.unlock();
+    	return res.success;
+      }
 
-    // rosbag::Bag bag(icr_database_dir_+ req.file + ".bag", rosbag::bagmode::Write);
-    // bag.write("contact_regions", icr_msg_->header.stamp, *icr_msg_);
+    rosbag::Bag bag(icr_database_dir_+ req.file + ".bag", rosbag::bagmode::Write);
+    bag.write("contact_regions", icr_msg_->header.stamp, *icr_msg_);
 
-    // lock_.unlock();
-    // bag.close();
-    // res.success=true;
+    lock_.unlock();
+    bag.close();
+    res.success=true;
 
-    // ROS_INFO("saved ICR to: %s",(icr_database_dir_+ req.file + ".bag").c_str());
+    ROS_INFO("saved ICR to: %s",(icr_database_dir_+ req.file + ".bag").c_str());
     return res.success;
   }
   //--------------------------------------------------------------------------------------------
-  bool IcrServer::toggleMode(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+bool IcrServer::setComputationMode(icr_msgs::SetComputationMode::Request &req, icr_msgs::SetComputationMode::Response &res)
   {
-    bool success=true;
+    res.success=false;
     lock_.lock();
   
-    switch (computation_mode_) 
+    switch (req.mode) 
       {
       case MODE_CONTINUOUS : 
-	ROS_INFO("Leaving continuous mode, entering step wise mode...");
-	computation_mode_=MODE_STEP_WISE;
-	break;
-
-      case MODE_STEP_WISE : 
-	ROS_INFO("Leaving step wise mode, entering continuous mode...");
+	ROS_INFO("Entering continous mode...");
 	computation_mode_=MODE_CONTINUOUS;
 	break;
 
+      case MODE_STEP_WISE : 
+	ROS_INFO("Entering step wise mode...");
+	computation_mode_=MODE_STEP_WISE;
+	break;
+
+     case MODE_TRANSFER : 
+	ROS_INFO("Entering transfer mode...");
+	computation_mode_=MODE_TRANSFER;
+	break;
+
       default : 
-        success = false;
-	ROS_ERROR("%d is an invalid computation mode - cannot switch mode",computation_mode_);
+	ROS_WARN("%d is an invalid computation mode - cannot switch mode",req.mode);
+        lock_.unlock();
+        return res.success;
       }
 
     lock_.unlock();
-    return success;
+
+    res.success=true;
+    return res.success;
   }
   //--------------------------------------------------------------------------------------------
   bool IcrServer::triggerIcrCmp(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
@@ -677,7 +736,6 @@ namespace ICR
 	lock_.unlock();
 	return false;
       }
-
     sz_.reset(new SearchZones(pt_grasp_));
     //A spherical task wrench space is used here ...
     sz_->setTaskWrenchSpace(WrenchSpacePtr(new SphericalWrenchSpace(6,qs_*pt_grasp_->getGWS()->getOcInsphereRadius())));
@@ -719,7 +777,7 @@ namespace ICR
 	  if(obj_->getContactPoint(point_ids[i])->isNeighbor(point_ids[j]))
 	    adj_mtrx(i,j)=((*(obj_->getContactPoint(point_ids[i])->getVertex()))-(*(obj_->getContactPoint(point_ids[j])->getVertex()))).norm();
         }
-   }
+  }
   //--------------------------------------------------------------------------------------------
   void IcrServer::floydWarshall(Eigen::MatrixXd & dist)const
   {
@@ -741,5 +799,5 @@ namespace ICR
 		dist(i,j) = dist.coeff(i,k) + dist.coeff(k,j);
       }
   }
- //--------------------------------------------------------------------------------------------
+  //--------------------------------------------------------------------------------------------
 }//end namespace

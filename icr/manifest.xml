@@ -16,6 +16,7 @@
   <depend package="urdf"/>
   <depend package="tf"/>
   <depend package="tf_conversions"/>
+  <depend package="eigen_conversions"/>
   <depend package="pcl_ros"/>
   <depend package="pcl"/>
   <depend package="libicr"/>

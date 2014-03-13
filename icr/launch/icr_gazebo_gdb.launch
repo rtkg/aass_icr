@@ -24,6 +24,7 @@
       <param name="computation_mode" type="int" value="0" />  <!--possible values: 0 - continuous or 1 - step_wise -->
       <param name="icr_database_directory" type="string" value="$(find icr)/icr_database/" /> 
       <param name="marker_size" type="double" value="0.003"/>
+      <param name="compute_in_palm_frame" type="bool" value="true"/>
       <remap from="grasp" to="/grasp_server/grasp"/> 
   </node>
 

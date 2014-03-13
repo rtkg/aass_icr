@@ -1,10 +1,10 @@
-<robot name="TEMPLATE_model">
+<robot name="MODEL_ID_model">
   <!-- 
   <link name="world"/>
-  <joint name="cup_joint" type="floating" >
+  <joint name="MODEL_ID_joint" type="floating" >
     <axis xyz="0 0 1" />
     <parent link="world" />
-    <child link="cup" />
+    <child link="MODEL_ID" />
     <origin xyz="0 0 0" rpy="0 0 0" />
   </joint>
   -->

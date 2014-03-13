@@ -303,7 +303,6 @@ bool ModelServer::gazeboSpawnModel(std::string const & serialized_model,geometry
   cloud.width = cloud.size();
   cloud.height = 1;
   cloud.is_dense=true;
-  std::cout<<"XMAX: "<<xmax<<std::endl;
   return true;
 }
 //--------------------------------------------------------------------------

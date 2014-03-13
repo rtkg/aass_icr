@@ -101,6 +101,7 @@ bool GraspServer::setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObj
     if(ref_set_)
       try
 	{
+	  //  std::cout<<"PP frame id: "<<palm_pose_.frame_id_<<" PP child frame id: "<<palm_pose_.child_frame_id_<<std::endl;
 	  tf_list_.waitForTransform(palm_pose_.frame_id_,palm_pose_.child_frame_id_,ros::Time(0),ros::Duration(0.5));
 	  tf_list_.lookupTransform(palm_pose_.frame_id_,palm_pose_.child_frame_id_,ros::Time(0), palm_pose_);
 	  tf::Vector3 pos=palm_pose_.getOrigin();
@@ -120,6 +121,7 @@ bool GraspServer::setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObj
 
     g.header.frame_id=palm_pose_.frame_id_;
     g.header.stamp=palm_pose_.stamp_;
+    g.palm_frame_id=palm_pose_.child_frame_id_;
     grasp_pub_.publish(g);
 
     // geometry_msgs::PoseStamped dbg;

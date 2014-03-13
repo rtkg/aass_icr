@@ -21,6 +21,7 @@
     ROS_INFO("ICR server ready");
     while(ros::ok()) 
       {
+
 	switch (icr_server.getComputationMode()) 
 	  {
 	  case MODE_CONTINUOUS : 
@@ -33,10 +34,14 @@
 	    icr_server.publish();
 	    break;
 
+	  case MODE_TRANSFER : 
+            icr_server.computeIcr();
+	    icr_server.publish();
+	    break;
+
 	  default : 
 	    ROS_ERROR("%d is an invalid computation mode - ICR computation not possible",icr_server.getComputationMode());
 	  }
-
 	ros::spinOnce();
       }
 
