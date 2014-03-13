@@ -139,7 +139,11 @@ namespace ICR
 
     /////////////////////////////DEBUG ///////////////////////////////////////////////
     //Sometimes the icr computation glitches and sets all points on the objec as icr points - it
-    //seems that creating a new prototype grasp and search zones here solves the problem, but it shouldn't happen ...
+    //seems that creating a new prototype grasp and search zones here solves the problem, but it
+    //shouldn't happen - maybe resetting the pt_grasp_ pointer in the GraspCallback can f**k things
+    //up ...?
+    //EDIT: now the pt_grasp_ is only re-initialized, not resetted - maybe this solves the problem ...? EDIT: Nope!
+    //
     if(icr_->getNumICRPoints() > obj_->getNumCp())
       {
 	icr_->getGrasp()->getParentObj()->writeToFile("/home/rkg/Desktop/debug/points.txt","/home/rkg/Desktop/debug/normals.txt","/home/rkg/Desktop/debug/neighbors.txt");
@@ -489,10 +493,10 @@ namespace ICR
 	//     dummy_pt.z=(*obj_->getContactPoint(n)->getVertex())(2);
 	// dummy_obj.points.push_back(dummy_pt);
         //   }
-	std::cout<<"transforming obj..."<<std::endl;
+
         FParamList phl_param;
         getActivePhalangeParameters(phl_param);
-        pt_grasp_.reset(new Grasp); //necessary in order to re-compute the OWS
+	pt_grasp_.reset(new Grasp); // maybe this messes things up
         pt_grasp_->init(phl_param,obj_,centerpoint_ids);
 	pt_grasp_initialized_=true;	
 
