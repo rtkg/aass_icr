@@ -141,13 +141,15 @@ namespace ICR
     //Sometimes the icr computation glitches and sets all points on the objec as icr points - it
     //seems that creating a new prototype grasp and search zones here solves the problem, but it
     //shouldn't happen - maybe resetting the pt_grasp_ pointer in the GraspCallback can f**k things
-    //up ...?
-    //EDIT: now the pt_grasp_ is only re-initialized, not resetted - maybe this solves the problem ...? EDIT: Nope!
+    //up ...?  EDIT: now the pt_grasp_ is only re-initialized, not resetted - maybe this solves the
+    //problem ...? EDIT: Nope!  EDIT: one issue is the multithreaded icr computation - the region_id
+    //IndependentContactRegions::computeICRFull/BFS can get out of range - not the cause of the
+    //problem though ... have to check the primitive search zone inclusion test in detail!
     //
     if(icr_->getNumICRPoints() > obj_->getNumCp())
       {
 	icr_->getGrasp()->getParentObj()->writeToFile("/home/rkg/Desktop/debug/points.txt","/home/rkg/Desktop/debug/normals.txt","/home/rkg/Desktop/debug/neighbors.txt");
-        pt_grasp_->getGWS()->writeToFile("/home/rkg/Desktop/debug/hyperplanes.txt");
+        icr_->getSearchZones()->writeToFile("/home/rkg/Desktop/debug/hyperplanes.txt");
         icr_->getGrasp()->getFinger(0)->getOWS()->writeToFile("/home/rkg/Desktop/debug/wrenches.txt"); //assuming that all fingers share the same OWS!!!
 
 	std::cout<<"G: ";
@@ -157,6 +159,7 @@ namespace ICR
 
         ROS_WARN("Icr computation glitched - overall number of points: %d, Spherical TWS radius: %f",icr_->getNumICRPoints(),dynamic_cast<SphericalWrenchSpace*>(sz_->getTaskWrenchSpace().get())->getRadius());
         lock_.unlock();
+	exit(0);
 	return;
         
       }
@@ -185,6 +188,9 @@ namespace ICR
         floydWarshall(dist);      
         dist.colwise().sum().minCoeff(&mp_id);  
         region_msg.mp_index=point_ids[mp_id];
+	std::cout<<"mp_id: "<<mp_id<<"point_ids[mp_id] "<<point_ids[mp_id]<<std::endl;
+	icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id]);
+
         region_msg.middle_point.x= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(0);
         region_msg.middle_point.y= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(1);
         region_msg.middle_point.z= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(2);
