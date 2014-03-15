@@ -21,7 +21,6 @@
     ROS_INFO("ICR server ready");
     while(ros::ok()) 
       {
-
 	switch (icr_server.getComputationMode()) 
 	  {
 	  case MODE_CONTINUOUS : 

@@ -12,7 +12,7 @@ namespace ICR
   //-------------------------------------------------------------------------
   IcrServer::IcrServer() : nh_private_("~"), obj_set_(false), pt_grasp_initialized_(false), gws_computed_(false),
 			   sz_computed_(false), icr_computed_(false), computation_mode_(MODE_CONTINUOUS), 
-			   qs_(1e-10),computation_frame_id_("/default"), icr_msg_(new icr_msgs::ContactRegions), marker_size_(0.003), 
+			   qs_(1e-8),computation_frame_id_("/default"), icr_msg_(new icr_msgs::ContactRegions), marker_size_(0.003), 
                            compute_in_palm_frame_(false), O_F_T_(Eigen::Affine3d::Identity())
   {
     std::string searched_param;
@@ -144,24 +144,51 @@ namespace ICR
     //up ...?  EDIT: now the pt_grasp_ is only re-initialized, not resetted - maybe this solves the
     //problem ...? EDIT: Nope!  EDIT: one issue is the multithreaded icr computation - the region_id
     //IndependentContactRegions::computeICRFull/BFS can get out of range - not the cause of the
-    //problem though ... have to check the primitive search zone inclusion test in detail!
-    //
+    //problem though ... have to check the primitive search zone inclusion test in detail!  EDIT:
+    //Could be some numeric problem - maybe the search zones/wrenches get so skewed and 'flat' for
+    //certain poses that all checks return positive ...  EDIT: doesn't seem to be the case -
+    //'delaying' the computation with printouts in the check-methods seems to fix the problem as
+    //well ...?
     if(icr_->getNumICRPoints() > obj_->getNumCp())
       {
-	icr_->getGrasp()->getParentObj()->writeToFile("/home/rkg/Desktop/debug/points.txt","/home/rkg/Desktop/debug/normals.txt","/home/rkg/Desktop/debug/neighbors.txt");
-        icr_->getSearchZones()->writeToFile("/home/rkg/Desktop/debug/hyperplanes.txt");
-        icr_->getGrasp()->getFinger(0)->getOWS()->writeToFile("/home/rkg/Desktop/debug/wrenches.txt"); //assuming that all fingers share the same OWS!!!
+	ROS_WARN("Icr computation glitched - overall number of points: %d, Spherical TWS radius: %f",icr_->getNumICRPoints(),dynamic_cast<SphericalWrenchSpace*>(sz_->getTaskWrenchSpace().get())->getRadius());
+	//	icr_->getGrasp()->getParentObj()->writeToFile("/home/rkg/Desktop/debug/points.txt","/home/rkg/Desktop/debug/normals.txt","/home/rkg/Desktop/debug/neighbors.txt");
+        //icr_->getSearchZones()->writeToFile("/home/rkg/Desktop/debug/hyperplanes.txt");
+        //icr_->getGrasp()->getFinger(0)->getOWS()->writeToFile("/home/rkg/Desktop/debug/wrenches.txt"); //assuming that all fingers share the same OWS!!!
 
+	VectorXui G(icr_->getNumContactRegions());
+	for (unsigned int i=0; i < icr_->getNumContactRegions(); i++)
+	  G(i)=pt_grasp_->getFinger(i)->getCenterPointPatch()->patch_ids_.front();
+	std::cout<<"G: "<<G.transpose()<<std::endl;
+	//	pt_grasp_->getGWS()->writeToFile("/home/rkg/Desktop/debug/GWS_before.txt");
+	pt_grasp_->setCenterPointIds(G);//re-computing the GWS & search zones seems to fix the
+					//issue, althoug the old GWS/SZ should be the same as the
+					//one computed here ... should compare
+      
+	//	pt_grasp_->getGWS()->writeToFile("/home/rkg/Desktop/debug/GWS_after.txt");
+	//        sz_->writeToFile("/home/rkg/Desktop/debug/sz_before.txt");
+	sz_.reset(new SearchZones(pt_grasp_));
+	//A spherical taks wrench space with radius qs_*GWS_Insphere_radius is used here ...
+	sz_->setTaskWrenchSpace(WrenchSpacePtr(new SphericalWrenchSpace(6,qs_*pt_grasp_->getGWS()->getOcInsphereRadius())));
+	sz_->computeShiftedSearchZones();
+	sz_computed_=true;
+	//        sz_->writeToFile("/home/rkg/Desktop/debug/sz_after.txt");
+	icr_.reset(new IndependentContactRegions(sz_,pt_grasp_));
+	icr_->computeICR(Full);
+
+	std::cout<<"Recomputed - overall number of points: "<<icr_->getNumICRPoints()<<std::endl;
+	//	std::cout<<"Transform:"<<std::endl<<O_F_T_.affine()<<std::endl<<std::endl;
+	exit(0);
+      }
+    else
+      {
+	std::cout<<"Icr computation went fine!"<<std::endl;
 	std::cout<<"G: ";
 	for (unsigned int i=0; i < icr_->getNumContactRegions(); i++)
 	  std::cout<< pt_grasp_->getFinger(i)->getCenterPointPatch()->patch_ids_.front()<<" ";
 	std::cout<<std::endl;
 
-        ROS_WARN("Icr computation glitched - overall number of points: %d, Spherical TWS radius: %f",icr_->getNumICRPoints(),dynamic_cast<SphericalWrenchSpace*>(sz_->getTaskWrenchSpace().get())->getRadius());
-        lock_.unlock();
-	exit(0);
-	return;
-        
+	//	std::cout<<"Transform:"<<std::endl<<O_F_T_.affine()<<std::endl<<std::endl;
       }
     //////////////////////////////DEBUG END///////////////////////////////////////////////
 
@@ -170,8 +197,6 @@ namespace ICR
     pcl::PointCloud<pcl::PointXYZRGBNormal> region_cloud;
     icr_msgs::ContactRegion region_msg;
     std::vector<unsigned int> point_ids;
-    Eigen::MatrixXd dist;
-    int mp_id;
     icr_msg_->header.stamp=ros::Time::now();
     icr_msg_->header.frame_id=computation_frame_id_;
 
@@ -183,17 +208,23 @@ namespace ICR
 	    lock_.unlock();
 	    return;
 	  }
-	//compute the middle point
-	computeAdjacencyMatrix(point_ids,dist);
-        floydWarshall(dist);      
-        dist.colwise().sum().minCoeff(&mp_id);  
-        region_msg.mp_index=point_ids[mp_id];
-	std::cout<<"mp_id: "<<mp_id<<"point_ids[mp_id] "<<point_ids[mp_id]<<std::endl;
-	icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id]);
-
-        region_msg.middle_point.x= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(0);
-        region_msg.middle_point.y= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(1);
-        region_msg.middle_point.z= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(2);
+        /////DEBUG: ADJANCENCY MATRIX COMPUTATION IS BUGGY - CAN RETURN EMPTY MATRICES, SKIP FOR NOW...
+	// //compute the middle point
+	//  Eigen::MatrixXd dist;
+	//    int mp_id;
+	// computeAdjacencyMatrix(point_ids,dist);
+        // floydWarshall(dist);      
+	// std::cout<<"dist: "<<std::endl<<dist<<std::endl
+        // dist.colwise().sum().minCoeff(&mp_id);  
+	// std::cout<<"dist: "<<dist.rows()<<" "<<dist.cols()<<std::endl;
+	// std::cout<<"mp_id: "<<mp_id<<" size points_id: "<<point_ids.size()<<std::endl;
+	// std::cout<<"point_ids.at(mp_id) "<<point_ids.at(mp_id)<<std::endl;
+        // region_msg.mp_index=point_ids[mp_id];
+	// icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id]);
+        // region_msg.middle_point.x= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(0);
+        // region_msg.middle_point.y= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(1);
+        // region_msg.middle_point.z= (*(icr_->getGrasp()->getParentObj()->getContactPoint(point_ids[mp_id])->getVertex()))(2);
+	////DEBUG END
 	region_msg.phalange=(std::string)phalange_config_[getPhalangeId(icr_->getGrasp()->getFinger(i)->getName())]["phl_name"];
 	pcl::toROSMsg(region_cloud,region_msg.points); 
 	region_msg.indices=point_ids;
@@ -666,7 +697,7 @@ namespace ICR
     return res.success;
   }
   //--------------------------------------------------------------------------------------------
-bool IcrServer::setComputationMode(icr_msgs::SetComputationMode::Request &req, icr_msgs::SetComputationMode::Response &res)
+  bool IcrServer::setComputationMode(icr_msgs::SetComputationMode::Request &req, icr_msgs::SetComputationMode::Response &res)
   {
     res.success=false;
     lock_.lock();
@@ -683,7 +714,7 @@ bool IcrServer::setComputationMode(icr_msgs::SetComputationMode::Request &req, i
 	computation_mode_=MODE_STEP_WISE;
 	break;
 
-     case MODE_TRANSFER : 
+      case MODE_TRANSFER : 
 	ROS_INFO("Entering transfer mode...");
 	computation_mode_=MODE_TRANSFER;
 	break;
