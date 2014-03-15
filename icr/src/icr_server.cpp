@@ -178,7 +178,6 @@ namespace ICR
 
 	std::cout<<"Recomputed - overall number of points: "<<icr_->getNumICRPoints()<<std::endl;
 	//	std::cout<<"Transform:"<<std::endl<<O_F_T_.affine()<<std::endl<<std::endl;
-	exit(0);
       }
     else
       {
