@@ -274,7 +274,6 @@ namespace ICR
     for (int32_t j = 0; j < 3 ;j++) 
       color(j)=(double)phalange_config_[phl_id]["display_color"][j];
 
-
     cloud.clear();
     point_ids.resize(icr_->getContactRegion(region_id)->size());
     for(uint j=0; j < icr_->getContactRegion(region_id)->size();j++) 
@@ -478,6 +477,7 @@ namespace ICR
 	return;
       }
 
+    Eigen::Vector3d color;
     pcl::PointCloud<pcl::PointXYZRGB> seed_points; 
     pcl::PointXYZRGB pt;  pt.r=255.0; pt.g=0.0; pt.b=0.0;
     bool all_phl_touching=true; //not used right now
@@ -500,7 +500,11 @@ namespace ICR
 	  contact_position=O_F_T_.inverse()*contact_position;//transform the  contact position into the previous palm frame F before trying to find the closest points
 
 	centerpoint_ids(i)=findObjectPointId(&contact_position);
-	  
+
+	for (int32_t j = 0; j < 3 ;j++) 
+	  color(j)=(double)phalange_config_[i]["display_color"][j];
+
+	pt.r=color(0); pt.g=color(1); pt.b=color(2);
 	pt.x=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(0); 
 	pt.y=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(1); 
 	pt.z=(*obj_->getContactPoint(centerpoint_ids(i))->getVertex())(2); 
