@@ -20,7 +20,7 @@
       <include file="$(find kclcontloc_sim)/kclcontloc_sim.launch" />
       <include file="$(find sensor_remapper)/launch/KCL_sensor_remapper.launch" />
 
-  <node pkg="icr" name="icr_server" type="icr_server" output="screen" ns="icr_server">
+  <node pkg="icr" name="icr_server" type="icr_server" output="screen" ns="icr_server" launch-prefix="gdb -ex run --args">
       <param name="computation_mode" type="int" value="0" />  <!--possible values: 0 - continuous or 1 - step_wise -->
       <param name="icr_database_directory" type="string" value="$(find icr)/icr_database/" /> 
       <param name="marker_size" type="double" value="0.003"/>

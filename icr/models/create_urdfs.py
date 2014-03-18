@@ -13,7 +13,7 @@ print stllist
 fstlist.close()
           
 for m in stllist:
-    t = open("TEMPLATE.urdf","r")
+    t = open("urdf/TEMPLATE.urdf","r")
     f = open("urdf/"+m+".urdf","w")
     for line in t:
 	line = line.replace("${MODEL_ID}",m)

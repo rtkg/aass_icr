@@ -258,6 +258,8 @@ bool ModelServer::gazeboSpawnModel(std::string const & serialized_model,geometry
 	    if(!gazebo_delete_clt_.call(delete_model))
 	      {
 		ROS_WARN("Could not delete model %s",name.c_str());
+             	    gazebo_unpause_clt_.call(empty);
+		    return false;
 	      }
 	    gazebo_unpause_clt_.call(empty);
             ROS_INFO("Deleted model %s in Gazebo",name.c_str());
@@ -303,7 +305,6 @@ bool ModelServer::gazeboSpawnModel(std::string const & serialized_model,geometry
   cloud.width = cloud.size();
   cloud.height = 1;
   cloud.is_dense=true;
-  std::cout<<"XMAX: "<<xmax<<std::endl;
   return true;
 }
 //--------------------------------------------------------------------------

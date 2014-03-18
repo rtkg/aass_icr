@@ -6,23 +6,21 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <rosdep name="boost" />
-  <depend package="libqhull"/>
-  <depend package="libobj"/>
-  <depend package="libicr"/>
   <depend package="roscpp"/>
   <depend package="geometry_msgs"/>
   <depend package="gazebo_msgs"/>
   <depend package="icr_msgs"/>
   <depend package="std_msgs"/>
   <depend package="std_srvs"/>
-  <depend package="eigen"/>
   <depend package="urdf_interface"/>
   <depend package="urdf"/>
   <depend package="tf"/>
   <depend package="tf_conversions"/>
+  <depend package="eigen_conversions"/>
   <depend package="pcl_ros"/>
   <depend package="pcl"/>
-  <depend package="visualization_msgs"/>
+  <depend package="libicr"/>
+  <depend package="eigen" />
 </package>
 
 

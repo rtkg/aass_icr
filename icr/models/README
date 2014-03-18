@@ -1,4 +1,6 @@
 to create the urdfs run
 >> python create_urdfs.py <<package_name>>
 
+Note that the .obj models need to have their normals pointing INWARD for correct icr computation, the .dae models should have their normals pointed OUTWARD for a better visualization in rviz
+
 

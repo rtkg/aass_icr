@@ -38,6 +38,7 @@ ENDIF(DEFINED debug_mode)
 rosbuild_add_executable(icr_server src/icr_server.cpp src/icr_server_node.cpp)
 rosbuild_add_executable(model_server src/model_server.cpp src/model_server_node.cpp src/pose_broadcaster.cpp)
 rosbuild_add_executable(grasp_server src/grasp_server.cpp src/grasp_server_node.cpp src/phalange.cpp)
+
 #rosbuild_add_executable(icr_client src/icr_client.cpp)
 #rosbuild_add_executable(finger_tip_publisher_node src/finger_tip_publisher_node.cpp)
 #rosbuild_add_executable(icr_pointcloud_test src/icr_pointcloud_test.cpp)

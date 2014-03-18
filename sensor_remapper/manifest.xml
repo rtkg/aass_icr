@@ -9,10 +9,11 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/sensor_remapper</url>
   <depend package="roscpp"/>
-  <depend package="eigen"/>
   <depend package="kcl_msgs"/>
   <depend package="gazebo_msgs"/>
   <depend package="icr_msgs"/>
+
+ <rosdep name="eigen" />
 <!--  <depend package="eigen_conversions"/>-->
 </package>
 

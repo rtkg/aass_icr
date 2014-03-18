@@ -8,10 +8,8 @@
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
   <export>
-    <cpp cflags="-I${prefix}/icrcpp/include" lflags="-L${prefix}/icrcpp/lib -Wl,-rpath,${prefix}/icrcpp/lib -licr"/>
+    <cpp cflags="-I${prefix}/icrcpp/include -I${prefix}/icrcpp/tools/eigen-eigen-3.0.2 -I${prefix}/icrcpp/tools/obj-1.0/build/include -I${prefix}/icrcpp/tools/Qhull-2011.2/src" lflags="-L${prefix}/icrcpp/lib -Wl,-rpath,${prefix}/icrcpp/lib -licr -L${prefix}/icrcpp/tools/obj-1.0/build/lib -Wl,-rpath,${prefix}/icrcpp/tools/obj-1.0/build/lib -lobj -L${prefix}/icrcpp/tools/Qhull-2011.2/lib -Wl,-rpath,${prefix}/icrcpp/tools/Qhull-2011.2/lib -lqhull6 -L${prefix}/icrcpp/tools/Qhull-2011.2/build/lib -Wl,-rpath,${prefix}/icrcpp/tools/Qhull-2011.2/lib -lqhullcpp"/>
   </export>
-  <depend package="libobj"/>
-  <depend package="libqhull"/>
   <rosdep name="libicr"/>
 </package>
 

@@ -3,8 +3,6 @@
  * @date   Fri, Mar 9, 2012
  *
  */
-
-
 #ifndef grasp_server_h___
 #define grasp_server_h___
 
@@ -20,43 +18,43 @@
 
 namespace ICR
 {
-/**
- *@brief Contains a list of Phalanges and publishes corresponding icr_msgs/ContactPoints messages 
- */
-class GraspServer
-{
- public:
+  /**
+   *@brief Contains a list of Phalanges and publishes corresponding icr_msgs/ContactPoints messages 
+   */
+  class GraspServer
+  {
+  public:
 
-  GraspServer();
-  ~GraspServer();
+    GraspServer();
+    ~GraspServer();
 
-/**
- *@brief Collects the current contact poses from the Phalanges and publishes icr_msgs/ContactPoints messages
- */
-  void spin();
+    /**
+     *@brief Collects the current contact poses from the Phalanges and publishes icr_msgs/ContactPoints messages
+     */
+    void spin();
 
- private:
+  private:
 
-  ros::NodeHandle nh_, nh_private_;
-  ros::ServiceServer set_obj_srv_;
-  ros::Publisher grasp_pub_;  
-  //ros::Publisher debug_pub_;//REMOVE  
-  boost::mutex lock_;
-  bool ref_set_;
-   tf::TransformListener tf_list_;
-  tf::StampedTransform palm_pose_;
+    ros::NodeHandle nh_, nh_private_;
+    ros::ServiceServer set_obj_srv_;
+    ros::Publisher grasp_pub_;  
+    //ros::Publisher debug_pub_;//REMOVE  
+    boost::mutex lock_;
+    bool ref_set_;
+    tf::TransformListener tf_list_;
+    tf::StampedTransform palm_pose_;
 
 
-/**
- *@brief Vector containing the phalanges of the hand - the order is important
- */
-  std::vector<Phalange*> phalanges_;
+    /**
+     *@brief Vector containing the phalanges of the hand - the order is important
+     */
+    std::vector<Phalange*> phalanges_;
 
-  /////////////////
-  //  CALLBACKS  //
-  /////////////////
+    /////////////////
+    //  CALLBACKS  //
+    /////////////////
 
-  bool setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObject::Response &res);
-};
+    bool setObject(icr_msgs::SetObject::Request  &req, icr_msgs::SetObject::Response &res);
+  };
 }//end namespace
 #endif
